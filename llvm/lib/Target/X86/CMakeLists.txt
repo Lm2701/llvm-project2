@@ -86,6 +86,8 @@ set(sources
   X86WinEHState.cpp
   X86WinEHUnwindV2.cpp
   X86InsertWait.cpp
+  X86TypeSys.cpp
+  X86TypeSys2.cpp
   GISel/X86CallLowering.cpp
   GISel/X86InstructionSelector.cpp
   GISel/X86LegalizerInfo.cpp
