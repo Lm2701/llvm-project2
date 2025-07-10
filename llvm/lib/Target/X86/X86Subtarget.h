@@ -280,6 +280,8 @@ public:
   /// supports it.
   bool hasMFence() const { return hasSSE2() || is64Bit(); }
 
+  bool hasDfence() const { return hasSSE2() || is64Bit(); }
+
   /// Avoid use of `mfence` for`fence seq_cst`, and instead use `lock or`.
   bool avoidMFence() const { return is64Bit(); }
 

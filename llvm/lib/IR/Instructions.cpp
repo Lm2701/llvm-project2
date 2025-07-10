@@ -643,10 +643,6 @@ MemoryEffects CallBase::getMemoryEffects() const {
       if (hasClobberingOperandBundles())
         FnME |= MemoryEffects::writeOnly();
     }
-    if (isVolatile()) {
-      // Volatile operations also access inaccessible memory.
-      FnME |= MemoryEffects::inaccessibleMemOnly();
-    }
     ME &= FnME;
   }
   return ME;
@@ -1005,6 +1001,27 @@ ReturnInst::ReturnInst(LLVMContext &C, Value *retVal, AllocInfo AllocInfo,
     Op<0>() = retVal;
 }
 
+//===----------------------------------------------------------------------===//
+//                        SreturnInst Implementation
+//===----------------------------------------------------------------------===//
+
+SreturnInst::SreturnInst(const SreturnInst &RI, AllocInfo AllocInfo)
+    : Instruction(Type::getVoidTy(RI.getContext()), Instruction::Sret,
+                  AllocInfo) {
+  assert(getNumOperands() == RI.getNumOperands() &&
+         "Wrong number of operands allocated");
+  if (RI.getNumOperands())
+    Op<0>() = RI.Op<0>();
+  SubclassOptionalData = RI.SubclassOptionalData;
+}
+
+SreturnInst::SreturnInst(LLVMContext &C, Value *retVal, AllocInfo AllocInfo,
+                       InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(C), Instruction::Sret, AllocInfo,
+                  InsertBefore) {
+  if (retVal)
+    Op<0>() = retVal;
+}
 //===----------------------------------------------------------------------===//
 //                        ResumeInst Implementation
 //===----------------------------------------------------------------------===//
@@ -1514,6 +1531,20 @@ FenceInst::FenceInst(LLVMContext &C, AtomicOrdering Ordering,
     : Instruction(Type::getVoidTy(C), Fence, AllocMarker, InsertBefore) {
   setOrdering(Ordering);
   setSyncScopeID(SSID);
+}
+
+//===----------------------------------------------------------------------===//
+//                       DfenceInst Implementation
+//===----------------------------------------------------------------------===//
+DfenceInst::DfenceInst(Value *Val, InsertPosition InsertBefore) :
+  DfenceInst(Val, AtomicOrdering::NotAtomic,
+                SyncScope::System, InsertBefore) {}
+
+DfenceInst::DfenceInst(Value *Val, AtomicOrdering Ordering,
+                       SyncScope::ID SSID, InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Val->getContext()), Dfence, AllocMarker, InsertBefore) {
+  Op<0>() = Val;
+  setAtomic(Ordering, SSID);
 }
 
 //===----------------------------------------------------------------------===//
@@ -2582,7 +2613,7 @@ Type *ExtractValueInst::getIndexedType(Type *Agg,
       return nullptr;
     }
   }
-  return Agg;
+  return const_cast<Type*>(Agg);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3488,7 +3519,7 @@ CmpInst::CmpInst(Type *ty, OtherOps op, Predicate predicate, Value *LHS,
     : Instruction(ty, op, AllocMarker, InsertBefore) {
   Op<0>() = LHS;
   Op<1>() = RHS;
-  setPredicate(predicate);
+  setPredicate((Predicate)predicate);
   setName(Name);
   if (FlagsSource)
     copyIRFlags(FlagsSource);
@@ -4387,6 +4418,10 @@ FenceInst *FenceInst::cloneImpl() const {
   return new FenceInst(getContext(), getOrdering(), getSyncScopeID());
 }
 
+DfenceInst *DfenceInst::cloneImpl() const {
+  return new DfenceInst(getOperand(0), getOrdering(), getSyncScopeID());
+}
+
 TruncInst *TruncInst::cloneImpl() const {
   return new TruncInst(getOperand(0), getType());
 }
@@ -4479,6 +4514,11 @@ LandingPadInst *LandingPadInst::cloneImpl() const {
 ReturnInst *ReturnInst::cloneImpl() const {
   IntrusiveOperandsAllocMarker AllocMarker{getNumOperands()};
   return new (AllocMarker) ReturnInst(*this, AllocMarker);
+}
+
+SreturnInst *SreturnInst::cloneImpl() const {
+  IntrusiveOperandsAllocMarker AllocMarker{getNumOperands()};
+  return new (AllocMarker) SreturnInst(*this, AllocMarker);
 }
 
 BranchInst *BranchInst::cloneImpl() const {

@@ -331,6 +331,7 @@ enum Kind {
   kw_filter,
 
   kw_ret,
+  kw_saferet,
   kw_br,
   kw_switch,
   kw_indirectbr,
@@ -348,6 +349,7 @@ enum Kind {
   kw_load,
   kw_store,
   kw_fence,
+  kw_dfence,
   kw_cmpxchg,
   kw_atomicrmw,
   kw_getelementptr,

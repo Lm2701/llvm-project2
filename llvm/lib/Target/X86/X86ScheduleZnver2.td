@@ -479,6 +479,8 @@ defm : Zn2WriteResFpuPair<WriteAESIMC,    [Zn2FPU01], 4>;
 defm : Zn2WriteResFpuPair<WriteAESKeyGen, [Zn2FPU01], 4>;
 
 def : WriteRes<WriteFence,  [Zn2AGU]>;
+def : WriteRes<WriteDfence,  [Zn2AGU]>;
+
 def : WriteRes<WriteNop, []>;
 
 // Microcoded Instructions

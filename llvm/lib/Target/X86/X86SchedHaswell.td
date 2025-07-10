@@ -629,6 +629,9 @@ def : WriteRes<WriteMicrocoded, [HWPort0156]> { let Latency = 100; }
 // Fence instructions.
 def : WriteRes<WriteFence,  [HWPort23, HWPort4]> { let NumMicroOps = 2; let ReleaseAtCycles = [1,1]; }
 
+// Dfence instructions.
+def : WriteRes<WriteDfence,  [HWPort23, HWPort4]> { let NumMicroOps = 2; let ReleaseAtCycles = [1,1]; }
+
 // Nop, not very useful expect it provides a model for nops!
 def : WriteRes<WriteNop, []>;
 

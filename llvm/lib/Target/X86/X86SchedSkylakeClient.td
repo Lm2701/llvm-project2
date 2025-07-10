@@ -609,6 +609,7 @@ def : WriteRes<WriteMicrocoded, [SKLPort0156]> { let Latency = 100; } // def Wri
 
 // Fence instructions.
 def : WriteRes<WriteFence,  [SKLPort23, SKLPort4]> { let NumMicroOps = 2; let ReleaseAtCycles = [1,1]; }
+def : WriteRes<WriteDfence,  [SKLPort23, SKLPort4]> { let NumMicroOps = 2; let ReleaseAtCycles = [1,1]; }
 
 // Load/store MXCSR.
 def : WriteRes<WriteLDMXCSR, [SKLPort0,SKLPort23,SKLPort0156]> { let Latency = 7; let NumMicroOps = 3; let ReleaseAtCycles = [1,1,1]; }

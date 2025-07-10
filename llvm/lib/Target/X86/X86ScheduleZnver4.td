@@ -1438,6 +1438,8 @@ defm : Zn4WriteResInt<WriteMicrocoded, [Zn4ALU0123], 100, [100], 100>;
 
 // Fence instructions.
 defm : Zn4WriteResInt<WriteFence, [Zn4ALU0123], 1, [100], 1>;
+defm : Zn4WriteResInt<WriteDfence, [Zn4ALU0123], 1, [100], 1>;
+
 
 def Zn4WriteLFENCE : SchedWriteRes<[Zn4LSU]> {
   let Latency = 1;

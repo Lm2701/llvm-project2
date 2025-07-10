@@ -330,6 +330,9 @@ defm : X86WriteResPairUnsupported<WriteFVarShuffleZ>;
 def : WriteRes<WriteFence, [ADLPPort00_06]> {
   let Latency = 2;
 }
+def : WriteRes<WriteDfence, [ADLPPort00_06]> {
+  let Latency = 2;
+}
 defm : ADLPWriteResPair<WriteIDiv16, [ADLPPort00_01_05_06_11, ADLPPort01], 16, [1, 3], 4, 4>;
 defm : ADLPWriteResPair<WriteIDiv32, [ADLPPort00_01_05_06_11, ADLPPort01], 15, [1, 3], 4, 4>;
 defm : ADLPWriteResPair<WriteIDiv64, [ADLPPort01], 18, [3], 3>;

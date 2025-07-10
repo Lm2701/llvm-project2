@@ -245,6 +245,7 @@ def HasFastSHLDRotate : Predicate<"Subtarget->hasFastSHLDRotate()">;
 def HasERMSB : Predicate<"Subtarget->hasERMSB()">;
 def HasFSRM : Predicate<"Subtarget->hasFSRM()">;
 def HasMFence    : Predicate<"Subtarget->hasMFence()">;
+def HasDfence : Predicate<"Subtarget->hasDfence()">;
 def HasFastDPWSSD: Predicate<"Subtarget->hasFastDPWSSD()">;
 def UseIndirectThunkCalls : Predicate<"Subtarget->useIndirectThunkCalls()">;
 def NotUseIndirectThunkCalls : Predicate<"!Subtarget->useIndirectThunkCalls()">;

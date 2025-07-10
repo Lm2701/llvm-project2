@@ -5157,6 +5157,18 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
     unsigned IntNo = Node->getConstantOperandVal(1);
     switch (IntNo) {
     default: break;
+    case Intrinsic::x86_sse_dfence :{
+        SDLoc DL(Node);
+        SDValue Chain = Node->getOperand(0);
+        SDValue Reg = Node->getOperand(1);
+
+        // Sélectionner l'instruction machine DFENCE
+        SDValue Ops[] = { Reg, Chain };
+        MachineSDNode *NewNode = CurDAG->getMachineNode(X86ISD::DFENCE, DL, MVT::Other, Ops);
+
+        ReplaceNode(Node, NewNode);
+        return;
+      }
     case Intrinsic::x86_encodekey128:
     case Intrinsic::x86_encodekey256: {
       if (!Subtarget->hasKL())
@@ -6428,6 +6440,31 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
     if (foldLoadStoreIntoMemOperand(Node))
       return;
     break;
+  
+  case ISD::ATOMIC_DFENCE:{
+    SDLoc DL(Node);
+    SDValue Chain = Node->getOperand(0);
+    SDValue Arg = Node->getOperand(1);
+
+    MachineSDNode *NewNode =
+        CurDAG->getMachineNode(X86::DFENCE, DL, MVT::Other, {Arg, Chain});
+
+    ReplaceNode(Node, NewNode);
+    return;
+  }
+
+  case X86ISD::SRET: {
+    // SRET is a special case of a return that has no value to return.
+    // It is used to return from functions that have no return value.
+    // We can just replace it with a RET instruction.
+    SDValue Chain = Node->getOperand(0);
+    SDLoc DL(Node);
+    MachineSDNode *NewNode =
+        CurDAG->getMachineNode(X86::SRET, DL, MVT::Other, {Chain});
+
+    ReplaceNode(Node, NewNode);
+    return;
+  }
 
   case X86ISD::SETCC_CARRY: {
     MVT VT = Node->getSimpleValueType(0);

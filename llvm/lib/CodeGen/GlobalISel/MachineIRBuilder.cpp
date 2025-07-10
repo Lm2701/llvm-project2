@@ -1180,6 +1180,15 @@ MachineIRBuilder::buildFence(unsigned Ordering, unsigned Scope) {
     .addImm(Scope);
 }
 
+
+MachineInstrBuilder
+MachineIRBuilder::buildDfence(const SrcOp &Val) {
+  auto MIB = buildInstr(TargetOpcode::G_DFENCE);
+  Val.addSrcToMIB(MIB);
+  return MIB;
+}
+
+
 MachineInstrBuilder MachineIRBuilder::buildPrefetch(const SrcOp &Addr,
                                                     unsigned RW,
                                                     unsigned Locality,

@@ -150,6 +150,9 @@ namespace llvm {
     /// Return from interrupt. Operand 0 is the number of bytes to pop.
     IRET,
 
+    ///Safe return
+    SRET,
+
     /// Repeat fill, corresponds to X86::REP_STOSx.
     REP_STOS,
 
@@ -759,6 +762,8 @@ namespace llvm {
     // Memory barriers.
     MFENCE,
 
+    DFENCE,
+
     // Get a random integer and indicate whether it is valid in CF.
     RDRAND,
 
@@ -1095,7 +1100,7 @@ namespace llvm {
     /// 4-byte boundaries.
     Align getByValTypeAlignment(Type *Ty, const DataLayout &DL) const override;
 
-    EVT getOptimalMemOpType(LLVMContext &Context, const MemOp &Op,
+    EVT getOptimalMemOpType(const MemOp &Op,
                             const AttributeList &FuncAttributes) const override;
 
     /// Returns true if it's safe to use load / store of the
@@ -1689,6 +1694,9 @@ namespace llvm {
     /// Keep a reference to the X86Subtarget around so that we can
     /// make the right decision when generating code for different targets.
     const X86Subtarget &Subtarget;
+
+    SDValue LowerSRET(SDValue Op, SelectionDAG &DAG) const;
+    MachineBasicBlock *EmitLoweredSRet(MachineInstr &MI, MachineBasicBlock *BB) const;
 
     /// A list of legal FP immediates.
     std::vector<APFloat> LegalFPImmediates;

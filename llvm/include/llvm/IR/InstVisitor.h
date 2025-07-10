@@ -171,6 +171,7 @@ public:
   RetTy visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) { DELEGATE(Instruction);}
   RetTy visitAtomicRMWInst(AtomicRMWInst &I)      { DELEGATE(Instruction);}
   RetTy visitFenceInst(FenceInst   &I)            { DELEGATE(Instruction);}
+  RetTy visitDfenceInst(DfenceInst &I)            { DELEGATE(Instruction);}
   RetTy visitGetElementPtrInst(GetElementPtrInst &I){ DELEGATE(Instruction);}
   RetTy visitPHINode(PHINode       &I)            { DELEGATE(Instruction);}
   RetTy visitTruncInst(TruncInst &I)              { DELEGATE(CastInst);}
@@ -218,6 +219,9 @@ public:
   // While terminators don't have a distinct type modeling them, we support
   // intercepting them with dedicated a visitor callback.
   RetTy visitReturnInst(ReturnInst &I) {
+    return static_cast<SubClass *>(this)->visitTerminator(I);
+  }
+  RetTy visitSreturnInst(SreturnInst &I) {
     return static_cast<SubClass *>(this)->visitTerminator(I);
   }
   RetTy visitBranchInst(BranchInst &I) {

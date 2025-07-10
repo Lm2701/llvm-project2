@@ -394,6 +394,28 @@ bool IRTranslator::translateRet(const User &U, MachineIRBuilder &MIRBuilder) {
   return CLI->lowerReturn(MIRBuilder, Ret, VRegs, FuncInfo, SwiftErrorVReg);
 }
 
+bool IRTranslator::translateSret(const User &U, MachineIRBuilder &MIRBuilder) {
+  const SreturnInst &RI = cast<SreturnInst>(U);
+  const Value *Sret = RI.getReturnValue();
+  if (Sret && DL->getTypeStoreSize(Sret->getType()).isZero())
+    Sret = nullptr;
+
+  ArrayRef<Register> VRegs;
+  if (Sret)
+    VRegs = getOrCreateVRegs(*Sret);
+
+  Register SwiftErrorVReg = 0;
+  if (CLI->supportSwiftError() && SwiftError.getFunctionArg()) {
+    SwiftErrorVReg = SwiftError.getOrCreateVRegUseAt(
+        &RI, &MIRBuilder.getMBB(), SwiftError.getFunctionArg());
+  }
+
+  // The target may mess up with the insertion point, but
+  // this is not important as a return is the last instruction
+  // of the block anyway.
+  return CLI->lowerReturn(MIRBuilder, Sret, VRegs, FuncInfo, SwiftErrorVReg);
+}
+
 void IRTranslator::emitBranchForMergedCondition(
     const Value *Cond, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
     MachineBasicBlock *CurBB, MachineBasicBlock *SwitchBB,
@@ -1681,7 +1703,7 @@ bool IRTranslator::translateGetElementPtr(const User &U,
     auto OffsetMIB =
         MIRBuilder.buildConstant(OffsetTy, Offset);
 
-    if (Offset >= 0 && cast<GEPOperator>(U).isInBounds())
+    if (int64_t(Offset) >= 0 && cast<GEPOperator>(U).isInBounds())
       Flags |= MachineInstr::MIFlag::NoUWrap;
 
     MIRBuilder.buildPtrAdd(getOrCreateVReg(U), BaseReg, OffsetMIB.getReg(0),
@@ -2777,8 +2799,11 @@ bool IRTranslator::translateCall(const User &U, MachineIRBuilder &MIRBuilder) {
 
   diagnoseDontCall(CI);
 
-  Intrinsic::ID ID = F ? F->getIntrinsicID() : Intrinsic::not_intrinsic;
-  if (!F || ID == Intrinsic::not_intrinsic)
+  Intrinsic::ID ID = Intrinsic::not_intrinsic;
+  if (F && F->isIntrinsic())
+    ID = F->getIntrinsicID();
+
+  if (!F || !F->isIntrinsic() || ID == Intrinsic::not_intrinsic)
     return translateCallBase(CI, MIRBuilder);
 
   assert(ID != Intrinsic::not_intrinsic && "unknown intrinsic");
@@ -3467,6 +3492,14 @@ bool IRTranslator::translateFence(const User &U,
   const FenceInst &Fence = cast<FenceInst>(U);
   MIRBuilder.buildFence(static_cast<unsigned>(Fence.getOrdering()),
                         Fence.getSyncScopeID());
+  return true;
+}
+
+bool IRTranslator::translateDfence(const User &U,
+                                  MachineIRBuilder &MIRBuilder) {
+  const DfenceInst &Dfence = cast<DfenceInst>(U);
+  ArrayRef<Register> Vals = getOrCreateVRegs(*Dfence.getValueOperand());
+  MIRBuilder.buildDfence(Vals[0]);
   return true;
 }
 

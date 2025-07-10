@@ -133,6 +133,8 @@ def SDTX86Cmpccxadd : SDTypeProfile<1, 4, [SDTCisSameAs<0, 2>,
 
 def X86MFence : SDNode<"X86ISD::MFENCE", SDTNone, [SDNPHasChain]>;
 
+def X86Dfence : SDNode<"X86ISD::DFENCE", SDTAtomicDfence, [SDNPHasChain, SDNPMemOperand]>;
+
 
 def X86bsf     : SDNode<"X86ISD::BSF",      SDTBinaryArithWithFlags>;
 def X86bsr     : SDNode<"X86ISD::BSR",      SDTBinaryArithWithFlags>;

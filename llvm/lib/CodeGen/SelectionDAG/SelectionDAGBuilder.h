@@ -56,6 +56,7 @@ class CleanupPadInst;
 class CleanupReturnInst;
 class Constant;
 class ConstrainedFPIntrinsic;
+class DbgValueInst;
 class DataLayout;
 class DIExpression;
 class DILocalVariable;
@@ -501,6 +502,7 @@ public:
 private:
   // Terminator instructions.
   void visitRet(const ReturnInst &I);
+  void visitSret(const SreturnInst &I);
   void visitBr(const BranchInst &I);
   void visitSwitch(const SwitchInst &I);
   void visitIndirectBr(const IndirectBrInst &I);
@@ -600,6 +602,7 @@ private:
   void visitAtomicCmpXchg(const AtomicCmpXchgInst &I);
   void visitAtomicRMW(const AtomicRMWInst &I);
   void visitFence(const FenceInst &I);
+  void visitDfence(const DfenceInst &I);
   void visitPHI(const PHINode &I);
   void visitCall(const CallInst &I);
   bool visitMemCmpBCmpCall(const CallInst &I);
