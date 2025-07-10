@@ -63,7 +63,7 @@ def SYSRET   : I<0x07, RawFrm, (outs), (ins), "sysret{l}", []>, TB;
 def SYSRET64 :RI<0x07, RawFrm, (outs), (ins), "sysretq", []>, TB,
                Requires<[In64BitMode]>;
 
-def SRET : PseudoI<(outs), (ins GR64:$reg), [(X86SRet GR64:$reg)]> {
+def SRET : PseudoI<(outs), (ins), [(X86SRet)]> {
   let hasSideEffects = 1;
   let isTerminator = 1;
   let isPseudo = 1;
