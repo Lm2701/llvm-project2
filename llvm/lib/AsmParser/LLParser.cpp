@@ -633,7 +633,7 @@ bool LLParser::parseTargetDefinition(std::string &TentativeDLStr,
     if (parseToken(lltok::equal, "expected '=' after target triple") ||
         parseStringConstant(Str))
       return true;
-    M->setTargetTriple(Triple(std::move(Str)));
+    M->setTargetTriple(Triple(Str));
     return false;
   case lltok::kw_datalayout:
     Lex.Lex();
@@ -1234,12 +1234,14 @@ bool LLParser::parseAliasOrIFunc(const std::string &Name, unsigned NameID,
   std::unique_ptr<GlobalIFunc> GI;
   GlobalValue *GV;
   if (IsAlias) {
-    GA.reset(GlobalAlias::create(Ty, AddrSpace, Linkage, Name, Aliasee,
-                                 /*Parent=*/nullptr));
+    GA.reset(GlobalAlias::create(Ty, AddrSpace,
+                                 (GlobalValue::LinkageTypes)Linkage, Name,
+                                 Aliasee, /*Parent*/ nullptr));
     GV = GA.get();
   } else {
-    GI.reset(GlobalIFunc::create(Ty, AddrSpace, Linkage, Name, Aliasee,
-                                 /*Parent=*/nullptr));
+    GI.reset(GlobalIFunc::create(Ty, AddrSpace,
+                                 (GlobalValue::LinkageTypes)Linkage, Name,
+                                 Aliasee, /*Parent*/ nullptr));
     GV = GI.get();
   }
   GV->setThreadLocalMode(TLM);
@@ -4816,34 +4818,6 @@ struct MDSignedOrMDField : MDEitherFieldImpl<MDSignedField, MDField> {
   }
 };
 
-struct MDUnsignedOrMDField : MDEitherFieldImpl<MDUnsignedField, MDField> {
-  MDUnsignedOrMDField(uint64_t Default = 0, bool AllowNull = true)
-      : ImplTy(MDUnsignedField(Default), MDField(AllowNull)) {}
-
-  MDUnsignedOrMDField(uint64_t Default, uint64_t Max, bool AllowNull = true)
-      : ImplTy(MDUnsignedField(Default, Max), MDField(AllowNull)) {}
-
-  bool isMDUnsignedField() const { return WhatIs == IsTypeA; }
-  bool isMDField() const { return WhatIs == IsTypeB; }
-  uint64_t getMDUnsignedValue() const {
-    assert(isMDUnsignedField() && "Wrong field type");
-    return A.Val;
-  }
-  Metadata *getMDFieldValue() const {
-    assert(isMDField() && "Wrong field type");
-    return B.Val;
-  }
-
-  Metadata *getValueAsMetadata(LLVMContext &Context) const {
-    if (isMDUnsignedField())
-      return ConstantAsMetadata::get(
-          ConstantInt::get(Type::getInt64Ty(Context), getMDUnsignedValue()));
-    if (isMDField())
-      return getMDFieldValue();
-    return nullptr;
-  }
-};
-
 } // end anonymous namespace
 
 namespace llvm {
@@ -5228,29 +5202,6 @@ bool LLParser::parseMDField(LocTy Loc, StringRef Name,
 }
 
 template <>
-bool LLParser::parseMDField(LocTy Loc, StringRef Name,
-                            MDUnsignedOrMDField &Result) {
-  // Try to parse an unsigned int.
-  if (Lex.getKind() == lltok::APSInt) {
-    MDUnsignedField Res = Result.A;
-    if (!parseMDField(Loc, Name, Res)) {
-      Result.assign(Res);
-      return false;
-    }
-    return true;
-  }
-
-  // Otherwise, try to parse as an MDField.
-  MDField Res = Result.B;
-  if (!parseMDField(Loc, Name, Res)) {
-    Result.assign(Res);
-    return false;
-  }
-
-  return true;
-}
-
-template <>
 bool LLParser::parseMDField(LocTy Loc, StringRef Name, MDStringField &Result) {
   LocTy ValueLoc = Lex.getLoc();
   std::string S;
@@ -5431,7 +5382,7 @@ bool LLParser::parseDISubrangeType(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(line, LineField, );                                                 \
   OPTIONAL(scope, MDField, );                                                  \
   OPTIONAL(baseType, MDField, );                                               \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
   OPTIONAL(flags, DIFlagField, );                                              \
   OPTIONAL(lowerBound, MDSignedOrMDField, );                                   \
@@ -5455,10 +5406,10 @@ bool LLParser::parseDISubrangeType(MDNode *&Result, bool IsDistinct) {
   Metadata *Stride = convToMetadata(stride);
   Metadata *Bias = convToMetadata(bias);
 
-  Result = GET_OR_DISTINCT(
-      DISubrangeType, (Context, name.Val, file.Val, line.Val, scope.Val,
-                       size.getValueAsMetadata(Context), align.Val, flags.Val,
-                       baseType.Val, LowerBound, UpperBound, Stride, Bias));
+  Result = GET_OR_DISTINCT(DISubrangeType,
+                           (Context, name.Val, file.Val, line.Val, scope.Val,
+                            size.Val, align.Val, flags.Val, baseType.Val,
+                            LowerBound, UpperBound, Stride, Bias));
 
   return false;
 }
@@ -5566,7 +5517,7 @@ bool LLParser::parseDIBasicType(MDNode *&Result, bool IsDistinct) {
 #define VISIT_MD_FIELDS(OPTIONAL, REQUIRED)                                    \
   OPTIONAL(tag, DwarfTagField, (dwarf::DW_TAG_base_type));                     \
   OPTIONAL(name, MDStringField, );                                             \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
   OPTIONAL(encoding, DwarfAttEncodingField, );                                 \
   OPTIONAL(num_extra_inhabitants, MDUnsignedField, (0, UINT32_MAX));           \
@@ -5574,8 +5525,7 @@ bool LLParser::parseDIBasicType(MDNode *&Result, bool IsDistinct) {
   PARSE_MD_FIELDS();
 #undef VISIT_MD_FIELDS
 
-  Result = GET_OR_DISTINCT(DIBasicType, (Context, tag.Val, name.Val,
-                                         size.getValueAsMetadata(Context),
+  Result = GET_OR_DISTINCT(DIBasicType, (Context, tag.Val, name.Val, size.Val,
                                          align.Val, encoding.Val,
                                          num_extra_inhabitants.Val, flags.Val));
   return false;
@@ -5590,7 +5540,7 @@ bool LLParser::parseDIFixedPointType(MDNode *&Result, bool IsDistinct) {
 #define VISIT_MD_FIELDS(OPTIONAL, REQUIRED)                                    \
   OPTIONAL(tag, DwarfTagField, (dwarf::DW_TAG_base_type));                     \
   OPTIONAL(name, MDStringField, );                                             \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
   OPTIONAL(encoding, DwarfAttEncodingField, );                                 \
   OPTIONAL(flags, DIFlagField, );                                              \
@@ -5602,8 +5552,7 @@ bool LLParser::parseDIFixedPointType(MDNode *&Result, bool IsDistinct) {
 #undef VISIT_MD_FIELDS
 
   Result = GET_OR_DISTINCT(DIFixedPointType,
-                           (Context, tag.Val, name.Val,
-                            size.getValueAsMetadata(Context), align.Val,
+                           (Context, tag.Val, name.Val, size.Val, align.Val,
                             encoding.Val, flags.Val, kind.Val, factor.Val,
                             numerator.Val, denominator.Val));
   return false;
@@ -5618,7 +5567,7 @@ bool LLParser::parseDIStringType(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(stringLength, MDField, );                                           \
   OPTIONAL(stringLengthExpression, MDField, );                                 \
   OPTIONAL(stringLocationExpression, MDField, );                               \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
   OPTIONAL(encoding, DwarfAttEncodingField, );
   PARSE_MD_FIELDS();
@@ -5627,8 +5576,7 @@ bool LLParser::parseDIStringType(MDNode *&Result, bool IsDistinct) {
   Result = GET_OR_DISTINCT(
       DIStringType,
       (Context, tag.Val, name.Val, stringLength.Val, stringLengthExpression.Val,
-       stringLocationExpression.Val, size.getValueAsMetadata(Context),
-       align.Val, encoding.Val));
+       stringLocationExpression.Val, size.Val, align.Val, encoding.Val));
   return false;
 }
 
@@ -5649,9 +5597,9 @@ bool LLParser::parseDIDerivedType(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(line, LineField, );                                                 \
   OPTIONAL(scope, MDField, );                                                  \
   REQUIRED(baseType, MDField, );                                               \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
-  OPTIONAL(offset, MDUnsignedOrMDField, (0, UINT64_MAX));                      \
+  OPTIONAL(offset, MDUnsignedField, (0, UINT64_MAX));                          \
   OPTIONAL(flags, DIFlagField, );                                              \
   OPTIONAL(extraData, MDField, );                                              \
   OPTIONAL(dwarfAddressSpace, MDUnsignedField, (UINT32_MAX, UINT32_MAX));      \
@@ -5674,11 +5622,11 @@ bool LLParser::parseDIDerivedType(MDNode *&Result, bool IsDistinct) {
         (unsigned)ptrAuthExtraDiscriminator.Val, ptrAuthIsaPointer.Val,
         ptrAuthAuthenticatesNullValues.Val);
 
-  Result = GET_OR_DISTINCT(
-      DIDerivedType, (Context, tag.Val, name.Val, file.Val, line.Val, scope.Val,
-                      baseType.Val, size.getValueAsMetadata(Context), align.Val,
-                      offset.getValueAsMetadata(Context), DWARFAddressSpace,
-                      PtrAuthData, flags.Val, extraData.Val, annotations.Val));
+  Result = GET_OR_DISTINCT(DIDerivedType,
+                           (Context, tag.Val, name.Val, file.Val, line.Val,
+                            scope.Val, baseType.Val, size.Val, align.Val,
+                            offset.Val, DWARFAddressSpace, PtrAuthData,
+                            flags.Val, extraData.Val, annotations.Val));
   return false;
 }
 
@@ -5690,9 +5638,9 @@ bool LLParser::parseDICompositeType(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(line, LineField, );                                                 \
   OPTIONAL(scope, MDField, );                                                  \
   OPTIONAL(baseType, MDField, );                                               \
-  OPTIONAL(size, MDUnsignedOrMDField, (0, UINT64_MAX));                        \
+  OPTIONAL(size, MDUnsignedField, (0, UINT64_MAX));                            \
   OPTIONAL(align, MDUnsignedField, (0, UINT32_MAX));                           \
-  OPTIONAL(offset, MDUnsignedOrMDField, (0, UINT64_MAX));                      \
+  OPTIONAL(offset, MDUnsignedField, (0, UINT64_MAX));                          \
   OPTIONAL(flags, DIFlagField, );                                              \
   OPTIONAL(elements, MDField, );                                               \
   OPTIONAL(runtimeLang, DwarfLangField, );                                     \
@@ -5727,12 +5675,12 @@ bool LLParser::parseDICompositeType(MDNode *&Result, bool IsDistinct) {
   if (identifier.Val)
     if (auto *CT = DICompositeType::buildODRType(
             Context, *identifier.Val, tag.Val, name.Val, file.Val, line.Val,
-            scope.Val, baseType.Val, size.getValueAsMetadata(Context),
-            align.Val, offset.getValueAsMetadata(Context), specification.Val,
-            num_extra_inhabitants.Val, flags.Val, elements.Val, runtimeLang.Val,
-            EnumKind, vtableHolder.Val, templateParams.Val, discriminator.Val,
-            dataLocation.Val, associated.Val, allocated.Val, Rank,
-            annotations.Val, bitStride.Val)) {
+            scope.Val, baseType.Val, size.Val, align.Val, offset.Val,
+            specification.Val, num_extra_inhabitants.Val, flags.Val,
+            elements.Val, runtimeLang.Val, EnumKind, vtableHolder.Val,
+            templateParams.Val, discriminator.Val, dataLocation.Val,
+            associated.Val, allocated.Val, Rank, annotations.Val,
+            bitStride.Val)) {
       Result = CT;
       return false;
     }
@@ -5742,8 +5690,7 @@ bool LLParser::parseDICompositeType(MDNode *&Result, bool IsDistinct) {
   Result = GET_OR_DISTINCT(
       DICompositeType,
       (Context, tag.Val, name.Val, file.Val, line.Val, scope.Val, baseType.Val,
-       size.getValueAsMetadata(Context), align.Val,
-       offset.getValueAsMetadata(Context), flags.Val, elements.Val,
+       size.Val, align.Val, offset.Val, flags.Val, elements.Val,
        runtimeLang.Val, EnumKind, vtableHolder.Val, templateParams.Val,
        identifier.Val, discriminator.Val, dataLocation.Val, associated.Val,
        allocated.Val, Rank, annotations.Val, specification.Val,
@@ -5874,8 +5821,7 @@ bool LLParser::parseDISubprogram(MDNode *&Result, bool IsDistinct) {
   OPTIONAL(retainedNodes, MDField, );                                          \
   OPTIONAL(thrownTypes, MDField, );                                            \
   OPTIONAL(annotations, MDField, );                                            \
-  OPTIONAL(targetFuncName, MDStringField, );                                   \
-  OPTIONAL(keyInstructions, MDBoolField, );
+  OPTIONAL(targetFuncName, MDStringField, );
   PARSE_MD_FIELDS();
 #undef VISIT_MD_FIELDS
 
@@ -5895,7 +5841,7 @@ bool LLParser::parseDISubprogram(MDNode *&Result, bool IsDistinct) {
        type.Val, scopeLine.Val, containingType.Val, virtualIndex.Val,
        thisAdjustment.Val, flags.Val, SPFlags, unit.Val, templateParams.Val,
        declaration.Val, retainedNodes.Val, thrownTypes.Val, annotations.Val,
-       targetFuncName.Val, keyInstructions.Val));
+       targetFuncName.Val));
   return false;
 }
 
@@ -6115,26 +6061,18 @@ bool LLParser::parseDILocalVariable(MDNode *&Result, bool IsDistinct) {
 }
 
 /// parseDILabel:
-///   ::= !DILabel(scope: !0, name: "foo", file: !1, line: 7, column: 4)
+///   ::= !DILabel(scope: !0, name: "foo", file: !1, line: 7)
 bool LLParser::parseDILabel(MDNode *&Result, bool IsDistinct) {
 #define VISIT_MD_FIELDS(OPTIONAL, REQUIRED)                                    \
   REQUIRED(scope, MDField, (/* AllowNull */ false));                           \
   REQUIRED(name, MDStringField, );                                             \
   REQUIRED(file, MDField, );                                                   \
-  REQUIRED(line, LineField, );                                                 \
-  OPTIONAL(column, ColumnField, );                                             \
-  OPTIONAL(isArtificial, MDBoolField, );                                       \
-  OPTIONAL(coroSuspendIdx, MDUnsignedField, );
+  REQUIRED(line, LineField, );
   PARSE_MD_FIELDS();
 #undef VISIT_MD_FIELDS
 
-  std::optional<unsigned> CoroSuspendIdx =
-      coroSuspendIdx.Seen ? std::optional<unsigned>(coroSuspendIdx.Val)
-                          : std::nullopt;
-
   Result = GET_OR_DISTINCT(DILabel,
-                           (Context, scope.Val, name.Val, file.Val, line.Val,
-                            column.Val, isArtificial.Val, CoroSuspendIdx));
+                           (Context, scope.Val, name.Val, file.Val, line.Val));
   return false;
 }
 
@@ -7156,6 +7094,8 @@ int LLParser::parseInstruction(Instruction *&Inst, BasicBlock *BB,
   case lltok::kw_unreachable: Inst = new UnreachableInst(Context); return false;
   case lltok::kw_ret:
     return parseRet(Inst, BB, PFS);
+  case lltok::kw_saferet:
+    return parseSret(Inst, BB, PFS);
   case lltok::kw_br:
     return parseBr(Inst, PFS);
   case lltok::kw_switch:
@@ -7367,6 +7307,8 @@ int LLParser::parseInstruction(Instruction *&Inst, BasicBlock *BB,
     return parseAtomicRMW(Inst, PFS);
   case lltok::kw_fence:
     return parseFence(Inst, PFS);
+  case lltok::kw_dfence:
+    return parseDfence(Inst, PFS);
   case lltok::kw_getelementptr:
     return parseGetElementPtr(Inst, PFS);
   case lltok::kw_extractvalue:
@@ -7453,6 +7395,38 @@ bool LLParser::parseRet(Instruction *&Inst, BasicBlock *BB,
                               getTypeString(ResType) + "'");
 
   Inst = ReturnInst::Create(Context, RV);
+  return false;
+}
+
+
+
+bool LLParser::parseSret(Instruction *&Inst, BasicBlock *BB,
+                        PerFunctionState &PFS) {
+  SMLoc TypeLoc = Lex.getLoc();
+  Type *Ty = nullptr;
+  if (parseType(Ty, true /*void allowed*/))
+    return true;
+
+  Type *ResType = PFS.getFunction().getReturnType();
+
+  if (Ty->isVoidTy()) {
+    if (!ResType->isVoidTy())
+      return error(TypeLoc, "value doesn't match function result type '" +
+                                getTypeString(ResType) + "'");
+
+    Inst = SreturnInst::Create(Context);
+    return false;
+  }
+
+  Value *RV;
+  if (parseValue(Ty, RV, PFS))
+    return true;
+
+  if (ResType != RV->getType())
+    return error(TypeLoc, "value doesn't match function result type '" +
+                              getTypeString(ResType) + "'");
+
+  Inst = SreturnInst::Create(Context, RV);
   return false;
 }
 
@@ -8764,6 +8738,17 @@ int LLParser::parseFence(Instruction *&Inst, PerFunctionState &PFS) {
     return tokError("fence cannot be monotonic");
 
   Inst = new FenceInst(Context, Ordering, SSID);
+  return InstNormal;
+}
+
+int LLParser::parseDfence(Instruction *&Inst, PerFunctionState &PFS) {
+  Value *Val; LocTy Loc;
+  AtomicOrdering Ordering = AtomicOrdering::NotAtomic;
+  SyncScope::ID SSID = SyncScope::System;
+
+  if (parseTypeAndValue(Val, Loc, PFS)) return true;
+
+  Inst = new DfenceInst(Val, Ordering, SSID);
   return InstNormal;
 }
 

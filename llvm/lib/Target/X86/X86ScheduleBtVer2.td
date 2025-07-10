@@ -306,6 +306,7 @@ defm : JWriteResIntPair<WriteJump,  [JALU01], 1>;
 def : WriteRes<WriteSystem,     [JALU01]> { let Latency = 100; }
 def : WriteRes<WriteMicrocoded, [JALU01]> { let Latency = 100; }
 def : WriteRes<WriteFence,  [JSAGU]>;
+def : WriteRes<WriteDfence,  [JSAGU]>;
 
 // Nops don't have dependencies, so there's no actual latency, but we set this
 // to '1' to tell the scheduler that the nop uses an ALU slot for a cycle.

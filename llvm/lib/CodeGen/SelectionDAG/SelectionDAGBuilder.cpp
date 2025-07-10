@@ -2297,6 +2297,169 @@ void SelectionDAGBuilder::visitRet(const ReturnInst &I) {
   DAG.setRoot(Chain);
 }
 
+
+
+void SelectionDAGBuilder::visitSret(const SreturnInst &I) {
+  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
+  auto &DL = DAG.getDataLayout();
+  SDValue Chain = getControlRoot();
+  SmallVector<ISD::OutputArg, 8> Outs;
+  SmallVector<SDValue, 8> OutVals;
+
+  // Calls to @llvm.experimental.deoptimize don't generate a return value, so
+  // lower
+  //
+  //   %val = call <ty> @llvm.experimental.deoptimize()
+  //   ret <ty> %val
+  //
+  // differently.
+  if (I.getParent()->getTerminatingDeoptimizeCall()) {
+    LowerDeoptimizingReturn();
+    return;
+  }
+
+  if (!FuncInfo.CanLowerReturn) {
+    Register DemoteReg = FuncInfo.DemoteRegister;
+
+    // Emit a store of the return value through the virtual register.
+    // Leave Outs empty so that LowerReturn won't try to load return
+    // registers the usual way.
+    MVT PtrValueVT = TLI.getPointerTy(DL, DL.getAllocaAddrSpace());
+    SDValue RetPtr =
+        DAG.getCopyFromReg(Chain, getCurSDLoc(), DemoteReg, PtrValueVT);
+    SDValue RetOp = getValue(I.getOperand(0));
+
+    SmallVector<EVT, 4> ValueVTs, MemVTs;
+    SmallVector<uint64_t, 4> Offsets;
+    ComputeValueVTs(TLI, DL, I.getOperand(0)->getType(), ValueVTs, &MemVTs,
+                    &Offsets, 0);
+    unsigned NumValues = ValueVTs.size();
+
+    SmallVector<SDValue, 4> Chains(NumValues);
+    Align BaseAlign = DL.getPrefTypeAlign(I.getOperand(0)->getType());
+    for (unsigned i = 0; i != NumValues; ++i) {
+      // An aggregate return value cannot wrap around the address space, so
+      // offsets to its parts don't wrap either.
+      SDValue Ptr = DAG.getObjectPtrOffset(getCurSDLoc(), RetPtr,
+                                           TypeSize::getFixed(Offsets[i]));
+
+      SDValue Val = RetOp.getValue(RetOp.getResNo() + i);
+      if (MemVTs[i] != ValueVTs[i])
+        Val = DAG.getPtrExtOrTrunc(Val, getCurSDLoc(), MemVTs[i]);
+      Chains[i] = DAG.getStore(
+          Chain, getCurSDLoc(), Val,
+          // FIXME: better loc info would be nice.
+          Ptr, MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()),
+          commonAlignment(BaseAlign, Offsets[i]));
+    }
+
+    Chain = DAG.getNode(ISD::TokenFactor, getCurSDLoc(),
+                        MVT::Other, Chains);
+  } else if (I.getNumOperands() != 0) {
+    SmallVector<EVT, 4> ValueVTs;
+    ComputeValueVTs(TLI, DL, I.getOperand(0)->getType(), ValueVTs);
+    unsigned NumValues = ValueVTs.size();
+    if (NumValues) {
+      SDValue RetOp = getValue(I.getOperand(0));
+
+      const Function *F = I.getParent()->getParent();
+
+      bool NeedsRegBlock = TLI.functionArgumentNeedsConsecutiveRegisters(
+          I.getOperand(0)->getType(), F->getCallingConv(),
+          /*IsVarArg*/ false, DL);
+
+      ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
+      if (F->getAttributes().hasRetAttr(Attribute::SExt))
+        ExtendKind = ISD::SIGN_EXTEND;
+      else if (F->getAttributes().hasRetAttr(Attribute::ZExt))
+        ExtendKind = ISD::ZERO_EXTEND;
+
+      LLVMContext &Context = F->getContext();
+      bool RetInReg = F->getAttributes().hasRetAttr(Attribute::InReg);
+
+      for (unsigned j = 0; j != NumValues; ++j) {
+        EVT VT = ValueVTs[j];
+
+        if (ExtendKind != ISD::ANY_EXTEND && VT.isInteger())
+          VT = TLI.getTypeForExtReturn(Context, VT, ExtendKind);
+
+        CallingConv::ID CC = F->getCallingConv();
+
+        unsigned NumParts = TLI.getNumRegistersForCallingConv(Context, CC, VT);
+        MVT PartVT = TLI.getRegisterTypeForCallingConv(Context, CC, VT);
+        SmallVector<SDValue, 4> Parts(NumParts);
+        getCopyToParts(DAG, getCurSDLoc(),
+                       SDValue(RetOp.getNode(), RetOp.getResNo() + j),
+                       &Parts[0], NumParts, PartVT, &I, CC, ExtendKind);
+
+        // 'inreg' on function refers to return value
+        ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
+        if (RetInReg)
+          Flags.setInReg();
+
+        if (I.getOperand(0)->getType()->isPointerTy()) {
+          Flags.setPointer();
+          Flags.setPointerAddrSpace(
+              cast<PointerType>(I.getOperand(0)->getType())->getAddressSpace());
+        }
+
+        if (NeedsRegBlock) {
+          Flags.setInConsecutiveRegs();
+          if (j == NumValues - 1)
+            Flags.setInConsecutiveRegsLast();
+        }
+
+        // Propagate extension type if any
+        if (ExtendKind == ISD::SIGN_EXTEND)
+          Flags.setSExt();
+        else if (ExtendKind == ISD::ZERO_EXTEND)
+          Flags.setZExt();
+        else if (F->getAttributes().hasRetAttr(Attribute::NoExt))
+          Flags.setNoExt();
+
+        for (unsigned i = 0; i < NumParts; ++i) {
+          Outs.push_back(ISD::OutputArg(Flags,
+                                        Parts[i].getValueType().getSimpleVT(),
+                                        VT, /*isfixed=*/true, 0, 0));
+          OutVals.push_back(Parts[i]);
+        }
+      }
+    }
+  }
+
+  // Push in swifterror virtual register as the last element of Outs. This makes
+  // sure swifterror virtual register will be returned in the swifterror
+  // physical register.
+  const Function *F = I.getParent()->getParent();
+  if (TLI.supportSwiftError() &&
+      F->getAttributes().hasAttrSomewhere(Attribute::SwiftError)) {
+    assert(SwiftError.getFunctionArg() && "Need a swift error argument");
+    ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
+    Flags.setSwiftError();
+    Outs.push_back(ISD::OutputArg(
+        Flags, /*vt=*/TLI.getPointerTy(DL), /*argvt=*/EVT(TLI.getPointerTy(DL)),
+        /*isfixed=*/true, /*origidx=*/1, /*partOffs=*/0));
+    // Create SDNode for the swifterror virtual register.
+    OutVals.push_back(
+        DAG.getRegister(SwiftError.getOrCreateVRegUseAt(
+                            &I, FuncInfo.MBB, SwiftError.getFunctionArg()),
+                        EVT(TLI.getPointerTy(DL))));
+  }
+
+  bool isVarArg = DAG.getMachineFunction().getFunction().isVarArg();
+  CallingConv::ID CallConv =
+    DAG.getMachineFunction().getFunction().getCallingConv();
+  Chain = DAG.getTargetLoweringInfo().LowerReturn(
+      Chain, CallConv, isVarArg, Outs, OutVals, getCurSDLoc(), DAG);
+
+  // Verify that the target's LowerReturn behaved as expected.
+  assert(Chain.getNode() && Chain.getValueType() == MVT::Other &&
+         "LowerReturn didn't return a valid chain!");
+
+  // Update the DAG with the new chain value resulting from return lowering.
+  DAG.setRoot(Chain);
+}
+
 /// CopyToExportRegsIfNeeded - If the given value has virtual registers
 /// created for it, emit nodes to copy the value into the virtual
 /// registers.
@@ -4336,12 +4499,18 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
   auto &TLI = DAG.getTargetLoweringInfo();
   GEPNoWrapFlags NW = cast<GEPOperator>(I).getNoWrapFlags();
 
-  // For a vector GEP, keep the prefix scalar as long as possible, then
-  // convert any scalars encountered after the first vector operand to vectors.
+  // Normalize Vector GEP - all scalar operands should be converted to the
+  // splat vector.
   bool IsVectorGEP = I.getType()->isVectorTy();
   ElementCount VectorElementCount =
       IsVectorGEP ? cast<VectorType>(I.getType())->getElementCount()
                   : ElementCount::getFixed(0);
+
+  if (IsVectorGEP && !N.getValueType().isVector()) {
+    LLVMContext &Context = *DAG.getContext();
+    EVT VT = EVT::getVectorVT(Context, N.getValueType(), VectorElementCount);
+    N = DAG.getSplat(VT, dl, N);
+  }
 
   for (gep_type_iterator GTI = gep_type_begin(&I), E = gep_type_end(&I);
        GTI != E; ++GTI) {
@@ -4390,7 +4559,7 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
         APInt Offs = ElementMul * CI->getValue().sextOrTrunc(IdxSize);
         LLVMContext &Context = *DAG.getContext();
         SDValue OffsVal;
-        if (N.getValueType().isVector())
+        if (IsVectorGEP)
           OffsVal = DAG.getConstant(
               Offs, dl, EVT::getVectorVT(Context, IdxTy, VectorElementCount));
         else
@@ -4412,16 +4581,10 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
       // N = N + Idx * ElementMul;
       SDValue IdxN = getValue(Idx);
 
-      if (IdxN.getValueType().isVector() != N.getValueType().isVector()) {
-        if (N.getValueType().isVector()) {
-          EVT VT = EVT::getVectorVT(*Context, IdxN.getValueType(),
-                                    VectorElementCount);
-          IdxN = DAG.getSplat(VT, dl, IdxN);
-        } else {
-          EVT VT =
-              EVT::getVectorVT(*Context, N.getValueType(), VectorElementCount);
-          N = DAG.getSplat(VT, dl, N);
-        }
+      if (!IdxN.getValueType().isVector() && IsVectorGEP) {
+        EVT VT = EVT::getVectorVT(*Context, IdxN.getValueType(),
+                                  VectorElementCount);
+        IdxN = DAG.getSplat(VT, dl, IdxN);
       }
 
       // If the index is smaller or larger than intptr_t, truncate or extend
@@ -4442,7 +4605,7 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
         SDValue VScale = DAG.getNode(
             ISD::VSCALE, dl, VScaleTy,
             DAG.getConstant(ElementMul.getZExtValue(), dl, VScaleTy));
-        if (N.getValueType().isVector())
+        if (IsVectorGEP)
           VScale = DAG.getSplatVector(N.getValueType(), dl, VScale);
         IdxN = DAG.getNode(ISD::MUL, dl, N.getValueType(), IdxN, VScale,
                            ScaleFlags);
@@ -4473,11 +4636,6 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
 
       N = DAG.getMemBasePlusOffset(N, IdxN, dl, AddFlags);
     }
-  }
-
-  if (IsVectorGEP && !N.getValueType().isVector()) {
-    EVT VT = EVT::getVectorVT(*Context, N.getValueType(), VectorElementCount);
-    N = DAG.getSplat(VT, dl, N);
   }
 
   MVT PtrTy = TLI.getPointerTy(DAG.getDataLayout(), AS);
@@ -5212,6 +5370,15 @@ void SelectionDAGBuilder::visitFence(const FenceInst &I) {
   Ops[2] = DAG.getTargetConstant(I.getSyncScopeID(), dl,
                                  TLI.getFenceOperandTy(DAG.getDataLayout()));
   SDValue N = DAG.getNode(ISD::ATOMIC_FENCE, dl, MVT::Other, Ops);
+  setValue(&I, N);
+  DAG.setRoot(N);
+}
+
+void SelectionDAGBuilder::visitDfence(const DfenceInst &I) {
+  SDLoc dl = getCurSDLoc();
+  SDValue Chain = getRoot();
+  SDValue Arg = getValue(I.getOperand(0));
+  SDValue N = DAG.getNode(ISD::ATOMIC_DFENCE, dl, MVT::Other, {Chain, Arg});
   setValue(&I, N);
   DAG.setRoot(N);
 }
@@ -6679,6 +6846,69 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     DAG.setRoot(Res.getValue(1));
     return;
   }
+  case Intrinsic::dbg_declare: {
+    const auto &DI = cast<DbgDeclareInst>(I);
+    // Debug intrinsics are handled separately in assignment tracking mode.
+    // Some intrinsics are handled right after Argument lowering.
+    if (AssignmentTrackingEnabled ||
+        FuncInfo.PreprocessedDbgDeclares.count(&DI))
+      return;
+    LLVM_DEBUG(dbgs() << "SelectionDAG visiting dbg_declare: " << DI << "\n");
+    DILocalVariable *Variable = DI.getVariable();
+    DIExpression *Expression = DI.getExpression();
+    dropDanglingDebugInfo(Variable, Expression);
+    // Assume dbg.declare can not currently use DIArgList, i.e.
+    // it is non-variadic.
+    assert(!DI.hasArgList() && "Only dbg.value should currently use DIArgList");
+    handleDebugDeclare(DI.getVariableLocationOp(0), Variable, Expression,
+                       DI.getDebugLoc());
+    return;
+  }
+  case Intrinsic::dbg_label: {
+    const DbgLabelInst &DI = cast<DbgLabelInst>(I);
+    DILabel *Label = DI.getLabel();
+    assert(Label && "Missing label");
+
+    SDDbgLabel *SDV;
+    SDV = DAG.getDbgLabel(Label, dl, SDNodeOrder);
+    DAG.AddDbgLabel(SDV);
+    return;
+  }
+  case Intrinsic::dbg_assign: {
+    // Debug intrinsics are handled separately in assignment tracking mode.
+    if (AssignmentTrackingEnabled)
+      return;
+    // If assignment tracking hasn't been enabled then fall through and treat
+    // the dbg.assign as a dbg.value.
+    [[fallthrough]];
+  }
+  case Intrinsic::dbg_value: {
+    // Debug intrinsics are handled separately in assignment tracking mode.
+    if (AssignmentTrackingEnabled)
+      return;
+    const DbgValueInst &DI = cast<DbgValueInst>(I);
+    assert(DI.getVariable() && "Missing variable");
+
+    DILocalVariable *Variable = DI.getVariable();
+    DIExpression *Expression = DI.getExpression();
+    dropDanglingDebugInfo(Variable, Expression);
+
+    if (DI.isKillLocation()) {
+      handleKillDebugValue(Variable, Expression, DI.getDebugLoc(), SDNodeOrder);
+      return;
+    }
+
+    SmallVector<Value *, 4> Values(DI.getValues());
+    if (Values.empty())
+      return;
+
+    bool IsVariadic = DI.hasArgList();
+    if (!handleDebugValue(Values, Variable, Expression, DI.getDebugLoc(),
+                          SDNodeOrder, IsVariadic))
+      addDanglingDebugInfo(Values, Variable, Expression, IsVariadic,
+                           DI.getDebugLoc(), SDNodeOrder);
+    return;
+  }
 
   case Intrinsic::eh_typeid_for: {
     // Find the type id for the given typeinfo.
@@ -7325,7 +7555,13 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     return;
   case Intrinsic::get_dynamic_area_offset: {
     SDValue Op = getRoot();
+    EVT PtrTy = TLI.getFrameIndexTy(DAG.getDataLayout());
     EVT ResTy = TLI.getValueType(DAG.getDataLayout(), I.getType());
+    // Result type for @llvm.get.dynamic.area.offset should match PtrTy for
+    // target.
+    if (PtrTy.getFixedSizeInBits() < ResTy.getFixedSizeInBits())
+      report_fatal_error("Wrong result type for @llvm.get.dynamic.area.offset"
+                         " intrinsic!");
     Res = DAG.getNode(ISD::GET_DYNAMIC_AREA_OFFSET, sdl, DAG.getVTList(ResTy),
                       Op);
     DAG.setRoot(Op);

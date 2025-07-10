@@ -2951,14 +2951,6 @@ LLVMIntPredicate LLVMGetICmpPredicate(LLVMValueRef Inst) {
   return (LLVMIntPredicate)0;
 }
 
-LLVMBool LLVMGetICmpSameSign(LLVMValueRef Inst) {
-  return unwrap<ICmpInst>(Inst)->hasSameSign();
-}
-
-void LLVMSetICmpSameSign(LLVMValueRef Inst, LLVMBool SameSign) {
-  unwrap<ICmpInst>(Inst)->setSameSign(SameSign);
-}
-
 LLVMRealPredicate LLVMGetFCmpPredicate(LLVMValueRef Inst) {
   if (FCmpInst *I = dyn_cast<FCmpInst>(unwrap(Inst)))
     return (LLVMRealPredicate)I->getPredicate();
@@ -4115,6 +4107,8 @@ LLVMAtomicOrdering LLVMGetOrdering(LLVMValueRef MemAccessInst) {
     O = SI->getOrdering();
   else if (FenceInst *FI = dyn_cast<FenceInst>(P))
     O = FI->getOrdering();
+  else if (DfenceInst *FI = dyn_cast<DfenceInst>(P))
+    O = FI->getOrdering();
   else
     O = cast<AtomicRMWInst>(P)->getOrdering();
   return mapToLLVMOrdering(O);
@@ -4127,6 +4121,8 @@ void LLVMSetOrdering(LLVMValueRef MemAccessInst, LLVMAtomicOrdering Ordering) {
   if (LoadInst *LI = dyn_cast<LoadInst>(P))
     return LI->setOrdering(O);
   else if (FenceInst *FI = dyn_cast<FenceInst>(P))
+    return FI->setOrdering(O);
+  else if (DfenceInst *FI = dyn_cast<DfenceInst>(P))
     return FI->setOrdering(O);
   else if (AtomicRMWInst *ARWI = dyn_cast<AtomicRMWInst>(P))
     return ARWI->setOrdering(O);

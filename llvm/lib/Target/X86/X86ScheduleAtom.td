@@ -198,6 +198,7 @@ defm : AtomWriteResPair<WriteJump, [AtomPort1], [AtomPort1]>;
 def : WriteRes<WriteSystem,     [AtomPort01]> { let Latency = 100; }
 def : WriteRes<WriteMicrocoded, [AtomPort01]> { let Latency = 100; }
 def : WriteRes<WriteFence,      [AtomPort0]>;
+def : WriteRes<WriteDfence,      [AtomPort0]>;
 
 // Nops don't have dependencies, so there's no actual latency, but we set this
 // to '1' to tell the scheduler that the nop uses an ALU slot for a cycle.

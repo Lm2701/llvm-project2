@@ -507,6 +507,10 @@ def WriteMicrocoded : SchedWrite;
 // Fence instructions.
 def WriteFence : SchedWrite;
 
+// Dfence instructions.
+def WriteDfence : SchedWrite;
+
+
 // Nop, not very useful expect it provides a model for nops!
 def WriteNop : SchedWrite;
 

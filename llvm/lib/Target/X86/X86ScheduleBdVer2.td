@@ -300,6 +300,7 @@ defm : PdWriteResExPair<WriteJump,  [PdEX1, PdBranch]>;
 def : WriteRes<WriteSystem,     [PdEX01]> { let Latency = 100; }
 def : WriteRes<WriteMicrocoded, [PdEX01]> { let Latency = 100; }
 def : WriteRes<WriteFence,      [PdStore]>;
+def : WriteRes<WriteDfence,      [PdStore]>;
 
 def PdWriteXLAT : SchedWriteRes<[PdEX01]> {
   let Latency = 6;

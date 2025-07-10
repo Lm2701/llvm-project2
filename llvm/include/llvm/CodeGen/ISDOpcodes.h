@@ -110,6 +110,8 @@ enum NodeType {
   FRAMEADDR,
   RETURNADDR,
 
+  SRET,
+
   /// ADDROFRETURNADDR - Represents the llvm.addressofreturnaddress intrinsic.
   /// This node takes no operand, returns a target-specific pointer to the
   /// place in the stack frame where the return address of the current
@@ -1341,6 +1343,11 @@ enum NodeType {
   /// This corresponds to the fence instruction. It takes an input chain, and
   /// two integer constants: an AtomicOrdering and a SynchronizationScope.
   ATOMIC_FENCE,
+
+  /// OUTCHAIN = ATOMIC_DFENCE(INCHAIN, val)
+  /// This corresponds to the dfence instruction. It takes an input chain, and
+  /// the value to protect.
+  ATOMIC_DFENCE,
 
   /// Val, OUTCHAIN = ATOMIC_LOAD(INCHAIN, ptr)
   /// This corresponds to "load atomic" instruction.

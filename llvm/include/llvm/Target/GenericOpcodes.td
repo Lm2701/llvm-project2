@@ -86,27 +86,6 @@ def G_TRUNC : GenericInstruction {
   let hasSideEffects = false;
 }
 
-// Truncate the signed operand to a signed result with saturation.
-def G_TRUNC_SSAT_S : GenericInstruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type1:$src);
-  let hasSideEffects = false;
-}
-
-// Truncate the signed operand to an unsigned result with saturation.
-def G_TRUNC_SSAT_U : GenericInstruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type1:$src);
-  let hasSideEffects = false;
-}
-
-// Truncate the unsigned operand to an unsigned result with saturation.
-def G_TRUNC_USAT_U : GenericInstruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type1:$src);
-  let hasSideEffects = false;
-}
-
 def G_IMPLICIT_DEF : GenericInstruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins);
@@ -1397,6 +1376,12 @@ def G_ATOMICRMW_USUB_SAT : G_ATOMICRMW_OP;
 def G_FENCE : GenericInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$ordering, i32imm:$scope);
+  let hasSideEffects = true;
+}
+
+def G_DFENCE : GenericInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins type0:$src);
   let hasSideEffects = true;
 }
 

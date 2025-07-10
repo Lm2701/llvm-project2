@@ -933,6 +933,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(select,      Select);
   INSTKEYWORD(va_arg,      VAArg);
   INSTKEYWORD(ret,         Ret);
+  INSTKEYWORD(sret,        Sret);
   INSTKEYWORD(br,          Br);
   INSTKEYWORD(switch,      Switch);
   INSTKEYWORD(indirectbr,  IndirectBr);
@@ -947,6 +948,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(cmpxchg,     AtomicCmpXchg);
   INSTKEYWORD(atomicrmw,   AtomicRMW);
   INSTKEYWORD(fence,       Fence);
+  INSTKEYWORD(dfence,       Dfence);
   INSTKEYWORD(getelementptr, GetElementPtr);
 
   INSTKEYWORD(extractelement, ExtractElement);

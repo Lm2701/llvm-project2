@@ -334,6 +334,9 @@ defm : SPRWriteResPair<WriteFVarShuffleZ, [SPRPort05], 1, [1], 1, 8>;
 def : WriteRes<WriteFence, [SPRPort00_06]> {
   let Latency = 2;
 }
+def : WriteRes<WriteDfence, [SPRPort00_06]> {
+  let Latency = 2;
+}
 defm : SPRWriteResPair<WriteIDiv16, [SPRPort00_01_05_06_11, SPRPort01], 16, [1, 3], 4, 4>;
 defm : SPRWriteResPair<WriteIDiv32, [SPRPort00_01_05_06_11, SPRPort01], 15, [1, 3], 4, 4>;
 defm : SPRWriteResPair<WriteIDiv64, [SPRPort01], 18, [3], 3>;

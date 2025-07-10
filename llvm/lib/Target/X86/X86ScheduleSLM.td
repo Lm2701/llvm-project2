@@ -458,6 +458,8 @@ defm : SLMWriteResPair<WriteCLMul, [SLM_FPC_RSV0], 10, [10], 8, 1>;
 def : WriteRes<WriteSystem,     [SLM_FPC_RSV0]> { let Latency = 100; }
 def : WriteRes<WriteMicrocoded, [SLM_FPC_RSV0]> { let Latency = 100; }
 def : WriteRes<WriteFence, [SLM_MEC_RSV]>;
+def : WriteRes<WriteDfence, [SLM_MEC_RSV]>;
+
 def : WriteRes<WriteNop, []>;
 
 // Remaining SLM instrs.

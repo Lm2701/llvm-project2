@@ -493,6 +493,96 @@ private:
   SyncScope::ID SSID;
 };
 
+
+//===----------------------------------------------------------------------===//
+//                                DfenceInst Class
+//===----------------------------------------------------------------------===//
+class DfenceInst : public Instruction {
+  using OrderingField = AtomicOrderingBitfieldElementT<0>;
+
+  constexpr static IntrusiveOperandsAllocMarker AllocMarker{1};
+
+  void Init(Value *Val, AtomicOrdering Ordering, SyncScope::ID SSID);
+
+protected:
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+
+  LLVM_ABI DfenceInst *cloneImpl() const;
+
+public:
+  // Ordering may only be Acquire, Release, AcquireRelease, or
+  // SequentiallyConsistent.
+  LLVM_ABI DfenceInst(Value *Val, InsertPosition InsertBefore);
+  LLVM_ABI DfenceInst(Value *Val, AtomicOrdering Ordering,
+                     SyncScope::ID SSID = SyncScope::System,
+                     InsertPosition InsertBefore = nullptr);
+
+  // allocate space for exactly zero operands
+  void *operator new(size_t S) { return User::operator new(S, AllocMarker); }
+  void operator delete(void *Ptr) { User::operator delete(Ptr); }
+
+  /// Returns the ordering constraint of this dfence instruction.
+  AtomicOrdering getOrdering() const {
+    return getSubclassData<OrderingField>();
+  }
+
+  /// Sets the ordering constraint of this dfence instruction.  May only be
+  /// Acquire, Release, AcquireRelease, or SequentiallyConsistent.
+  void setOrdering(AtomicOrdering Ordering) {
+    setSubclassData<OrderingField>(Ordering);
+  }
+
+  /// Returns the synchronization scope ID of this dfence instruction.
+  SyncScope::ID getSyncScopeID() const {
+    return SSID;
+  }
+
+  /// Sets the synchronization scope ID of this dfence instruction.
+  void setSyncScopeID(SyncScope::ID SSID) {
+    this->SSID = SSID;
+  }
+
+  void setAtomic(AtomicOrdering Ordering,
+                 SyncScope::ID SSID = SyncScope::System) {
+    setOrdering(Ordering);
+    setSyncScopeID(SSID);
+  }
+  
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  Value *getValueOperand() { return getOperand(0); }
+  const Value *getValueOperand() const { return getOperand(0); }
+
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static bool classof(const Instruction *I) {
+    return I->getOpcode() == Instruction::Dfence;
+  }
+  static bool classof(const Value *V) {
+    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+
+private:
+  // Shadow Instruction::setInstructionSubclassData with a private forwarding
+  // method so that subclasses cannot accidentally use it.
+  template <typename Bitfield>
+  void setSubclassData(typename Bitfield::Type Value) {
+    Instruction::setSubclassData<Bitfield>(Value);
+  }
+
+  /// The synchronization scope ID of this dfence instruction.  Not quite enough
+  /// room in SubClassData for everything, so synchronization scope ID gets its
+  /// own field.
+  SyncScope::ID SSID;
+};
+
+template <>
+struct OperandTraits<DfenceInst> : public FixedNumOperandTraits<DfenceInst, 1> {
+};
+
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DfenceInst, Value)
+
+
 //===----------------------------------------------------------------------===//
 //                                AtomicCmpXchgInst Class
 //===----------------------------------------------------------------------===//
@@ -3048,6 +3138,89 @@ struct OperandTraits<ReturnInst> : public VariadicOperandTraits<ReturnInst> {};
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReturnInst, Value)
 
 //===----------------------------------------------------------------------===//
+//                               SreturnInst Class
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+//                               ReturnInst Class
+//===----------------------------------------------------------------------===//
+
+//===---------------------------------------------------------------------------
+/// Return a value (possibly void), from a function.  Execution
+/// does not continue in this function any longer.
+///
+class SreturnInst : public Instruction {
+  SreturnInst(const SreturnInst &RI, AllocInfo AllocInfo);
+
+private:
+  // SreturnInst constructors:
+  // SreturnInst()                  - 'ret void' instruction
+  // SreturnInst(    null)          - 'ret void' instruction
+  // SreturnInst(Value* X)          - 'ret X'    instruction
+  // SreturnInst(null, Iterator It) - 'ret void' instruction, insert before I
+  // SreturnInst(Value* X, Iterator It) - 'ret X'    instruction, insert before I
+  // SreturnInst(null, Inst *I) - 'ret void' instruction, insert before I
+  // SreturnInst(Value* X, Inst *I) - 'ret X'    instruction, insert before I
+  // SreturnInst(    null, BB *B)   - 'ret void' instruction, insert @ end of B
+  // SreturnInst(Value* X, BB *B)   - 'ret X'    instruction, insert @ end of B
+  //
+  // NOTE: If the Value* passed is of type void then the constructor behaves as
+  // if it was passed NULL.
+  LLVM_ABI explicit SreturnInst(LLVMContext &C, Value *retVal,
+                               AllocInfo AllocInfo,
+                               InsertPosition InsertBefore);
+
+protected:
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+
+  LLVM_ABI SreturnInst *cloneImpl() const;
+
+public:
+  static SreturnInst *Create(LLVMContext &C, Value *retVal = nullptr,
+                            InsertPosition InsertBefore = nullptr) {
+    IntrusiveOperandsAllocMarker AllocMarker{retVal ? 1U : 0U};
+    return new (AllocMarker) SreturnInst(C, retVal, AllocMarker, InsertBefore);
+  }
+
+  static SreturnInst *Create(LLVMContext &C, BasicBlock *InsertAtEnd) {
+    IntrusiveOperandsAllocMarker AllocMarker{0};
+    return new (AllocMarker) SreturnInst(C, nullptr, AllocMarker, InsertAtEnd);
+  }
+
+  /// Provide fast operand accessors
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  /// Convenience accessor. Returns null if there is no return value.
+  Value *getReturnValue() const {
+    return getNumOperands() != 0 ? getOperand(0) : nullptr;
+  }
+
+  unsigned getNumSuccessors() const { return 0; }
+
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static bool classof(const Instruction *I) {
+    return (I->getOpcode() == Instruction::Sret);
+  }
+  static bool classof(const Value *V) {
+    return isa<Instruction>(V) && classof(cast<Instruction>(V));
+  }
+
+private:
+  BasicBlock *getSuccessor(unsigned idx) const {
+    llvm_unreachable("SreturnInst has no successors!");
+  }
+
+  void setSuccessor(unsigned idx, BasicBlock *B) {
+    llvm_unreachable("SreturnInst has no successors!");
+  }
+};
+
+template <>
+struct OperandTraits<SreturnInst> : public VariadicOperandTraits<SreturnInst> {};
+
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SreturnInst, Value)
+
+//===----------------------------------------------------------------------===//
 //                               BranchInst Class
 //===----------------------------------------------------------------------===//
 
@@ -5119,6 +5292,8 @@ inline std::optional<SyncScope::ID> getAtomicSyncScopeID(const Instruction *I) {
     return AI->getSyncScopeID();
   if (auto *AI = dyn_cast<FenceInst>(I))
     return AI->getSyncScopeID();
+  if (auto *AI = dyn_cast<DfenceInst>(I))
+    return AI->getSyncScopeID();
   if (auto *AI = dyn_cast<AtomicCmpXchgInst>(I))
     return AI->getSyncScopeID();
   if (auto *AI = dyn_cast<AtomicRMWInst>(I))
@@ -5134,6 +5309,8 @@ inline void setAtomicSyncScopeID(Instruction *I, SyncScope::ID SSID) {
   else if (auto *AI = dyn_cast<StoreInst>(I))
     AI->setSyncScopeID(SSID);
   else if (auto *AI = dyn_cast<FenceInst>(I))
+    AI->setSyncScopeID(SSID);
+  else if (auto *AI = dyn_cast<DfenceInst>(I))
     AI->setSyncScopeID(SSID);
   else if (auto *AI = dyn_cast<AtomicCmpXchgInst>(I))
     AI->setSyncScopeID(SSID);

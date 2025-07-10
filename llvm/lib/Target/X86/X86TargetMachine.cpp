@@ -19,7 +19,6 @@
 #include "X86Subtarget.h"
 #include "X86TargetObjectFile.h"
 #include "X86TargetTransformInfo.h"
-#include "llvm-c/Visibility.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -51,8 +50,15 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include "llvm/Support/CommandLine.h"
+#include "X86TypeSys2.h"
 
 using namespace llvm;
+
+cl::opt<bool> WithDfenceTS(
+    "with-dfence-ts",
+    cl::desc("Enable dfence type system instrumentation"),
+    cl::init(false));
 
 static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
                                cl::desc("Enable the machine combiner pass"),
@@ -220,7 +226,7 @@ getEffectiveX86CodeModel(const Triple &TT, std::optional<CodeModel::Model> CM,
   bool Is64Bit = TT.getArch() == Triple::x86_64;
   if (CM) {
     if (*CM == CodeModel::Tiny)
-      reportFatalUsageError("target does not support the tiny CodeModel");
+      report_fatal_error("Target does not support the tiny CodeModel", false);
     return *CM;
   }
   if (JIT)
@@ -595,6 +601,10 @@ void X86PassConfig::addPreSched2() {
 }
 
 void X86PassConfig::addPreEmitPass() {
+  if (WithDfenceTS) {
+    
+    addPass(createX86DfenceTypeSystemPass());
+  }
   if (getOptLevel() != CodeGenOptLevel::None) {
     addPass(new X86ExecutionDomainFix());
     addPass(createBreakFalseDeps());
@@ -620,6 +630,9 @@ void X86PassConfig::addPreEmitPass() {
 void X86PassConfig::addPreEmitPass2() {
   const Triple &TT = TM->getTargetTriple();
   const MCAsmInfo *MAI = TM->getMCAsmInfo();
+  if (WithDfenceTS) {
+    addPass(createX86DfenceTypeSystemPass());
+  }
 
   // The X86 Speculative Execution Pass must run after all control
   // flow graph modifying passes. As a result it was listed to run right before
@@ -702,3 +715,5 @@ bool X86PassConfig::addRegAssignAndRewriteOptimized() {
   }
   return TargetPassConfig::addRegAssignAndRewriteOptimized();
 }
+
+

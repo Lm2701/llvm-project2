@@ -632,6 +632,7 @@ namespace llvm {
     bool parseCmpPredicate(unsigned &P, unsigned Opc);
 
     bool parseRet(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
+    bool parseSret(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
     bool parseBr(Instruction *&Inst, PerFunctionState &PFS);
     bool parseSwitch(Instruction *&Inst, PerFunctionState &PFS);
     bool parseIndirectBr(Instruction *&Inst, PerFunctionState &PFS);
@@ -666,6 +667,7 @@ namespace llvm {
     int parseCmpXchg(Instruction *&Inst, PerFunctionState &PFS);
     int parseAtomicRMW(Instruction *&Inst, PerFunctionState &PFS);
     int parseFence(Instruction *&Inst, PerFunctionState &PFS);
+    int parseDfence(Instruction *&Inst, PerFunctionState &PFS);
     int parseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS);
     int parseExtractValue(Instruction *&Inst, PerFunctionState &PFS);
     int parseInsertValue(Instruction *&Inst, PerFunctionState &PFS);
