@@ -1522,5 +1522,3 @@ def X86vpmaddwd_su : PatFrag<(ops node:$lhs, node:$rhs),
                              (X86vpmaddwd node:$lhs, node:$rhs), [{
   return N->hasOneUse();
 }]>;
-
-def X86SRet : SDNode<"X86ISD::SRET", SDTNone>;

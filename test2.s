@@ -6,7 +6,9 @@
 myfunc:                                 # @myfunc
 	.cfi_startproc
 # %bb.0:                                # %entry
-	
+	popq	%rax
+	dfence	%rax
+	jmpq	*%rax
 .Lfunc_end0:
 	.size	myfunc, .Lfunc_end0-myfunc
 	.cfi_endproc
@@ -20,7 +22,9 @@ main:                                   # @main
 	pushq	%rax
 	.cfi_def_cfa_offset 16
 	callq	myfunc@PLT
-	
+	popq	%rax
+	dfence	%rax
+	jmpq	*%rax
 .Lfunc_end1:
 	.size	main, .Lfunc_end1-main
 	.cfi_endproc

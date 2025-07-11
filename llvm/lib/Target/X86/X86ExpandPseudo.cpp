@@ -425,6 +425,21 @@ bool X86ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     MBB.erase(MBBI);
     return true;
   }
+  case X86::SRET: {
+    DebugLoc DL = MI.getDebugLoc();
+    MachineFunction &MF = *MBB.getParent();
+    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+
+    BuildMI(MBB, MBBI, DL, TII.get(X86::POP64r)).addReg(X86::RAX);
+
+    BuildMI(MBB, MBBI, DL, TII.get(X86::DFENCE)).addReg(X86::RAX);
+
+    BuildMI(MBB, MBBI, DL, TII.get(X86::JMP64r)).addReg(X86::RAX);
+
+    MI.eraseFromParent();
+
+    return true;
+  }
   case X86::LCMPXCHG16B_SAVE_RBX: {
     // Perform the following transformation.
     // SaveRbx = pseudocmpxchg Addr, <4 opds for the address>, InArg, SaveRbx

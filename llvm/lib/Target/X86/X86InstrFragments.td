@@ -79,6 +79,8 @@ def SDTLockUnaryArithWithFlags : SDTypeProfile<1, 1, [SDTCisVT<0, i32>,
 
 def SDTX86Ret     : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
 
+def SDTX86SRet : SDTypeProfile<0, -1, [SDTCisVT<0, i32>]>;
+
 def SDT_X86CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>,
                                           SDTCisVT<1, i32>]>;
 def SDT_X86CallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>,
@@ -184,6 +186,8 @@ def X86retglue : SDNode<"X86ISD::RET_GLUE", SDTX86Ret,
                         [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def X86iret : SDNode<"X86ISD::IRET", SDTX86Ret,
                         [SDNPHasChain, SDNPOptInGlue]>;
+
+def X86sret : SDNode<"X86ISD::SRET", SDTX86SRet, [SDNPHasChain, SDNPOptInGlue]>;
 
 def X86vastart_save_xmm_regs :
                  SDNode<"X86ISD::VASTART_SAVE_XMM_REGS",

@@ -11,7 +11,9 @@ main:                                   # @main
 	movq	public_data@GOTPCREL(%rip), %rax
 	movzbl	(%rax), %eax
 	dfence	%eax
-	
+	popq	%rax
+	dfence	%rax
+	jmpq	*%rax
 .Lfunc_end0:
 	.size	main, .Lfunc_end0-main
 	.cfi_endproc

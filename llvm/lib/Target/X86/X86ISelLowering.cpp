@@ -28247,6 +28247,7 @@ SDValue X86TargetLowering::LowerSRET(SDValue Op,
                                            SelectionDAG &DAG) const {
   SDLoc dl(Op);
   SDValue Chain = Op.getOperand(0);
+  errs() << "I'm here in LowerSRET X86ISD::SRET\n";
 
   return DAG.getNode(X86ISD::SRET, dl, MVT::Other, Chain);
 }
@@ -33578,6 +33579,7 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   // clang-format off
   default: llvm_unreachable("Should not custom lower this!");
+  case X86ISD::SRET:            return LowerSRET(Op, DAG);
   case ISD::ATOMIC_FENCE:       return LowerATOMIC_FENCE(Op, Subtarget, DAG);
   case ISD::ATOMIC_DFENCE:      return LowerATOMIC_DFENCE(Op, Subtarget, DAG);
   case ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS:
@@ -33733,7 +33735,6 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::ADDRSPACECAST:      return LowerADDRSPACECAST(Op, DAG);
   case X86ISD::CVTPS2PH:        return LowerCVTPS2PH(Op, DAG);
   case ISD::PREFETCH:           return LowerPREFETCH(Op, Subtarget, DAG);
-  case ISD::SRET:               return LowerSRET(Op, DAG);
   // clang-format on
   }
 }
@@ -36764,12 +36765,10 @@ X86TargetLowering::EmitLoweredSRet(MachineInstr &MI,
   DebugLoc DL = MI.getDebugLoc();
   MachineFunction &MF = *MBB->getParent();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
-  MCContext &Ctx = MF.getContext();
 
   BuildMI(*MBB, MBB->end(), DL, TII.get(X86::POP64r)).addReg(X86::RAX);
   BuildMI(*MBB, MBB->end(), DL, TII.get(X86::DFENCE)).addReg(X86::RAX);
-  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::CALL64r)).addReg(X86::RAX);
-  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::JMP_1)).addExternalSymbol("__llvm_retpoline_thunk_rax");  
+  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::JMP64r)).addReg(X86::RAX);  
   MI.eraseFromParent();
   return MBB;
 }
@@ -37784,8 +37783,8 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
     return EmitLoweredIndirectThunk(MI, BB);
   case X86::CATCHRET:
     return EmitLoweredCatchRet(MI, BB);
-  case X86::SRET:
-    return EmitLoweredSRet(MI, BB);
+  case X86::SRET:{
+    return EmitLoweredSRet(MI, BB);}
   case X86::SEG_ALLOCA_32:
   case X86::SEG_ALLOCA_64:
     return EmitLoweredSegAlloca(MI, BB);

@@ -6454,13 +6454,11 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
   }
 
   case X86ISD::SRET: {
-    // SRET is a special case of a return that has no value to return.
-    // It is used to return from functions that have no return value.
-    // We can just replace it with a RET instruction.
     SDValue Chain = Node->getOperand(0);
+    SDValue Arg = Node->getOperand(1);
     SDLoc DL(Node);
     MachineSDNode *NewNode =
-        CurDAG->getMachineNode(X86::SRET, DL, MVT::Other, {Chain});
+        CurDAG->getMachineNode(X86::SRET, DL, MVT::Other, {Arg, Chain});
 
     ReplaceNode(Node, NewNode);
     return;
