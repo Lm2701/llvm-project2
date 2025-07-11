@@ -678,6 +678,7 @@ defm : LNLPWriteResPair<WriteFVarShuffle256, [LNLPVPort02_03], 3, [1], 1, 8>;
 defm : LNLPWriteResPair<WriteFVarShuffleY, [LNLPVPort02_03], 1, [1], 1, 8>;
 defm : X86WriteResPairUnsupported<WriteFVarShuffleZ>;
 defm : X86WriteRes<WriteFence, [LNLPPort10_11, LNLPPort25_26_27], 2, [1, 1], 2>;
+defm : X86WriteRes<WriteDfence, [LNLPPort10_11, LNLPPort25_26_27], 2, [1, 1], 2>;
 defm : LNLPWriteResPair<WriteIDiv16, [LNLPPort00_01_02_03_04_05, LNLPPort01_03_05], 16, [1, 3], 4, 4>;
 defm : LNLPWriteResPair<WriteIDiv32, [LNLPPort00_01_02_03_04_05, LNLPPort01_03_05], 15, [1, 3], 4, 4>;
 defm : LNLPWriteResPair<WriteIDiv64, [LNLPPort01_03_05], 18, [3], 3>;

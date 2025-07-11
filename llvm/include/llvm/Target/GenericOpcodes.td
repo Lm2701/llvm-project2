@@ -78,6 +78,29 @@ def G_ZEXT : GenericInstruction {
 }
 
 
+// Truncate the signed operand to an unsigned result with saturation.
+def G_TRUNC_SSAT_U : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src);
+  let hasSideEffects = false;
+}
+
+// Truncate the signed operand to a signed result with saturation.
+def G_TRUNC_SSAT_S : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src);
+  let hasSideEffects = false;
+}
+
+// Truncate the unsigned operand to an unsigned result with saturation.
+def G_TRUNC_USAT_U : GenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src);
+  let hasSideEffects = false;
+}
+
+
+
 // Truncate the underlying scalar type of an operation. This is equivalent to
 // G_EXTRACT for scalar types, but acts elementwise on vectors.
 def G_TRUNC : GenericInstruction {

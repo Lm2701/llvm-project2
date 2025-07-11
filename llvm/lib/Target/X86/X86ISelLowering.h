@@ -762,6 +762,7 @@ namespace llvm {
     // Memory barriers.
     MFENCE,
 
+    // Memory barriers.
     DFENCE,
 
     // Get a random integer and indicate whether it is valid in CF.
@@ -1100,7 +1101,7 @@ namespace llvm {
     /// 4-byte boundaries.
     Align getByValTypeAlignment(Type *Ty, const DataLayout &DL) const override;
 
-    EVT getOptimalMemOpType(const MemOp &Op,
+    EVT getOptimalMemOpType(LLVMContext &Context, const MemOp &Op,
                             const AttributeList &FuncAttributes) const override;
 
     /// Returns true if it's safe to use load / store of the
@@ -1360,6 +1361,8 @@ namespace llvm {
               getTargetConstantFromLoad(cast<LoadSDNode>(Op))) ||
              TargetLowering::isTargetCanonicalConstantNode(Op);
     }
+
+    // bool isTargetCanonicalSelect(SDNode *N) const override;
 
     const Constant *getTargetConstantFromLoad(LoadSDNode *LD) const override;
 
@@ -1697,7 +1700,7 @@ namespace llvm {
 
     SDValue LowerSRET(SDValue Op, SelectionDAG &DAG) const;
     MachineBasicBlock *EmitLoweredSRet(MachineInstr &MI, MachineBasicBlock *BB) const;
-
+    
     /// A list of legal FP immediates.
     std::vector<APFloat> LegalFPImmediates;
 
