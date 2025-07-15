@@ -257,12 +257,12 @@ let Features = "sse2", Header = "emmintrin.h", Attributes = [NoThrow, RequireDec
 }
 
 let Features = "sse2", Attributes = [NoThrow] in {
-  def dfence : X86Builtin<"void(x86_reg)">;
+  def dfence : X86Builtin<"void(int)">;
 }
 
 let Features = "sse2", Header = "emmintrin.h", Attributes = [NoThrow, RequireDeclaration] in {
-  def _mm_dfence : X86LibBuiltin<"void(x86_reg)">;
-}
+  def _mm_dfence : X86LibBuiltin<"void(int)">;
+} 
 
 let Attributes = [NoThrow] in {
   def pause : X86Builtin<"void()">;
