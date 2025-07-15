@@ -189,7 +189,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t1 = ::get_type_operand(*op0, gamma);
             if (!t1 == N) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret may leak through a select operation\n";
                 } else {
@@ -222,7 +221,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             }*/
             if ( t == S ){
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret might leak by loading at this ptr address\n";
                 } else {
@@ -239,7 +237,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t2 = ::get_type_operand(*op1, gamma);
 			if (t2 == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret might leak by storing at this ptr address\n";
                 } else {
@@ -258,7 +255,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t = ::get_type_operand(*op, gamma);
 			if (t == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret might leak with CmpXchg at this ptr address\n";
                 } else {
@@ -274,7 +270,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t2 = ::get_type_operand(*op1, gamma);
             if (t1 == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret might leak by doing an atomicrmw at this ptr address\n";
                 } else {
@@ -355,7 +350,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 result = ::get_type_operand(*op, gamma);
                 if (result == S) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        errs() << "Erreur de typage à ";
                         DL.print(errs()); // Affiche fichier:ligne:colonne
                         errs() << " A secret may leak through a branch operation\n";
                     } else {
@@ -382,7 +376,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 t = ::get_type_operand(*op, gamma);
                 if (t == S) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        errs() << "Erreur de typage à ";
                         DL.print(errs()); // Affiche fichier:ligne:colonne
                         errs() << " A secret may leak through a switch operation\n";
                     } else {
@@ -445,7 +438,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t = ::get_type_operand(*addr, gamma);
 			if (t == S) {
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " A secret might leak while jumping to this ptr\n";
                 } else {
@@ -457,7 +449,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 gamma = ::get_gamma_block(*bb, gamma);
             } else {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    errs() << "Erreur de typage à ";
                     DL.print(errs()); // Affiche fichier:ligne:colonne
                     errs() << " IndirectBr instruction requires a BlockAddress operand\n";
                 } else {
