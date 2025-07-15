@@ -1899,6 +1899,10 @@ public:
     return Insert(new FenceInst(Context, Ordering, SSID), Name);
   }
 
+  DfenceInst *CreateDfence(Value *Val, const Twine &Name = "") {
+    return Insert(new DfenceInst(Val), Name);
+  }
+
   AtomicCmpXchgInst *
   CreateAtomicCmpXchg(Value *Ptr, Value *Cmp, Value *New, MaybeAlign Align,
                       AtomicOrdering SuccessOrdering,

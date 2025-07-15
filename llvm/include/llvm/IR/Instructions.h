@@ -513,7 +513,7 @@ protected:
 public:
   // Ordering may only be Acquire, Release, AcquireRelease, or
   // SequentiallyConsistent.
-  LLVM_ABI DfenceInst(Value *Val, InsertPosition InsertBefore);
+  LLVM_ABI DfenceInst(Value *Val, InsertPosition InsertBefore = nullptr);
   LLVM_ABI DfenceInst(Value *Val, AtomicOrdering Ordering,
                      SyncScope::ID SSID = SyncScope::System,
                      InsertPosition InsertBefore = nullptr);

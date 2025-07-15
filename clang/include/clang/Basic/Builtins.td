@@ -1880,6 +1880,12 @@ def C11AtomicSignalFence : Builtin {
   let Prototype = "void(int)";
 }
 
+def C11AtomicDfence : Builtin {
+  let Spellings = ["__c11_atomic_dfence"];
+  let Attributes = [NoThrow];
+  let Prototype = "void(int)";
+}
+
 def C11AtomicIsLockFree : Builtin {
   let Spellings = ["__c11_atomic_is_lock_free"];
   let Attributes = [NoThrow, Constexpr];
@@ -2045,6 +2051,12 @@ def ScopedAtomicThreadFence : Builtin {
 
 def AtomicSignalFence : Builtin {
   let Spellings = ["__atomic_signal_fence"];
+  let Attributes = [NoThrow];
+  let Prototype = "void(int)";
+}
+
+def AtomicDfence : Builtin {
+  let Spellings = ["__atomic_dfence"];
   let Attributes = [NoThrow];
   let Prototype = "void(int)";
 }

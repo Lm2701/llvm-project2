@@ -4629,6 +4629,7 @@ the corresponding C11 operations, are:
 * ``__c11_atomic_init``
 * ``__c11_atomic_thread_fence``
 * ``__c11_atomic_signal_fence``
+* ``__c11_atomic_dfence``
 * ``__c11_atomic_is_lock_free`` (The argument is the size of the
   ``_Atomic(...)`` object, instead of its address)
 * ``__c11_atomic_store``
