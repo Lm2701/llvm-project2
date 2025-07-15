@@ -829,7 +829,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     return Builder.CreateCall(CGM.getIntrinsic(Intrinsic::x86_sse_sfence));
   }
   case X86::BI_mm_dfence: {
-    return Builder.CreateCall(CGM.getIntrinsic(Intrinsic::x86_sse2_dfence));
+    return Builder.CreateCall(CGM.getIntrinsic(Intrinsic::x86_sse_dfence));
   }
   case X86::BI_mm_pause: {
     return Builder.CreateCall(CGM.getIntrinsic(Intrinsic::x86_sse2_pause));
