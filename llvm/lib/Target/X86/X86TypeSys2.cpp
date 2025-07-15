@@ -102,7 +102,7 @@ type_sys llvm::get_type_operand (const llvm::Value &v, std::map<std::string, typ
     if (isa<Constant>(v)){
         result = N;
     }
-    else if (v.hasName()) {
+    else {
         auto it = gamma.find(v.getName().str());
         if (it != gamma.end()) {
             result = it->second;
@@ -133,7 +133,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
     const IndirectBrInst *IB = nullptr;
     std::map<std::string, type_sys>::iterator it = gamma.end();
     std::map<std::string, std::map<std::string, type_sys>>::iterator it_fun = gamma_fun.end();
-
     // Handle each instruction opcode and update gamma accordingly
     switch(I.getOpcode()) {
         // Binary operations and comparisons
@@ -189,7 +188,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             op2 = I.getOperand(2);
             t1 = ::get_type_operand(*op0, gamma);
             if (!t1 == N) {
-                errs() << "A secret may leak through a select operation\n";
+                if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret may leak through a select operation\n";
+                } else {
+                    errs() << "A secret may leak through a select operation\n";
+                }
             }
             t2 = ::get_type_operand(*op1, gamma);
             t3 = ::get_type_operand(*op2, gamma);
@@ -204,7 +209,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 op = I.getOperand(i);
                 t = ::get_type_operand(*op, gamma);
 				result = ::unify_typs(result, t);
-                
+
             }
             gamma[I.getName().str()] = result;
             break;
@@ -212,8 +217,17 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
         case Instruction::Load:
             op = I.getOperand(0);
             t = ::get_type_operand(*op, gamma);
+            /*if (t == N){
+                errs() << "Le type est N \n";
+            }*/
             if ( t == S ){
-                errs() << "A secret might leak by loading at this ptr address\n";
+                if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret might leak by loading at this ptr address\n";
+                } else {
+                    errs() << "A secret might leak by loading at this ptr address\n";
+                }
             }
             gamma[I.getName().str()] = S;
             break;
@@ -224,7 +238,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			op1 = I.getOperand(1);
 			t2 = ::get_type_operand(*op1, gamma);
 			if (t2 == S){
-				errs() << "A secret might leak by storing at this ptr address\n";
+				if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret might leak by storing at this ptr address\n";
+                } else {
+                    errs() << "A secret might leak by storing at this ptr address\n";
+                } 
 			}
             break;
         // AtomicCmpXchg operation
@@ -237,7 +257,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             op = I.getOperand(0);
 			t = ::get_type_operand(*op, gamma);
 			if (t == S){
-				errs() << "A secret might leak with CmpXchg at this ptr address\n";
+				if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret might leak with CmpXchg at this ptr address\n";
+                } else {
+                    errs() << "A secret might leak with CmpXchg at this ptr address\n";
+                }
 			}
             break;
         // AtomicRMW operation
@@ -247,7 +273,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t1 = ::get_type_operand(*op, gamma);
             t2 = ::get_type_operand(*op1, gamma);
             if (t1 == S){
-				errs() << "A secret might leak by doing an atomicrmw at this ptr address\n";
+				if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret might leak by doing an atomicrmw at this ptr address\n";
+                } else {
+                    errs() << "A secret might leak by doing an atomicrmw at this ptr address\n";
+                }
 			}
             gamma[I.getName().str()] = S;
             break;
@@ -272,20 +304,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             gamma2 = gamma;
             if (auto *IC = llvm::dyn_cast<CallInst>(&I))
             {
-                const AttributeList &Attrs = IC->getFunction()->getAttributes();
-                AttributeSet FnAttrs = Attrs.getFnAttrs();
-                i = 0;
-                for (const auto &Attr : FnAttrs) {
-                    op = IC->getArgOperand(i);
-                    t = ::get_type_operand(*op, gamma2);
-                    if (t == S) {
-                        errs() << "A secret may leak through a call operation\n";
-                    }
-                    else if (Attr.isStringAttribute()){
-                        gamma2[Attr.getKindAsString().str()] = S;
-                    }
-                    i++;
-                }
                 it_fun = gamma_fun.find(IC->getCalledFunction()->getName().str());
                 if (it_fun != gamma_fun.end()) {
                     gamma2 = it_fun->second;
@@ -307,11 +325,17 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             gamma[I.getName().str()] = result;
             break;
         // Ret instruction (not safe)
-        case Instruction::Ret:
-            errs() << "Return instruction encountered, a return instruction is not safe.\n";
-            break;
+        /*case Instruction::Ret:
+            if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << "A secret may leak through a select operation";
+                } else {
+                    errs() << "Erreur de typage : pas de debug info\n";
+                } ("Return instruction encountered, a return instruction is not safe.");
+            break;*/
         // Sret instruction
-        case Instruction::Sret:
+        case Instruction::Ret:
             if (I.getNumOperands() > 0) {
                 op = I.getOperand(0);
                 result = ::get_type_operand(*op, gamma);
@@ -330,7 +354,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 op = I.getOperand(0);
                 result = ::get_type_operand(*op, gamma);
                 if (result == S) {
-                    errs() << "A secret may leak through a branch operation\n";
+                    if (const DebugLoc &DL = I.getDebugLoc()) {
+                        errs() << "Erreur de typage à ";
+                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        errs() << " A secret may leak through a branch operation\n";
+                    } else {
+                        errs() << "A secret may leak through a branch operation\n";
+                    } 
                 }
                 gamma2 = gamma;
                 gamma3 = gamma;
@@ -351,7 +381,13 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 op = I.getOperand(i);
                 t = ::get_type_operand(*op, gamma);
                 if (t == S) {
-                    errs() << "A secret may leak through a switch operation\n";
+                    if (const DebugLoc &DL = I.getDebugLoc()) {
+                        errs() << "Erreur de typage à ";
+                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        errs() << " A secret may leak through a switch operation\n";
+                    } else {
+                        errs() << "A secret may leak through a switch operation\n";
+                    } 
                 }
                 gamma2 = gamma;
                 bb = llvm::dyn_cast<BasicBlock>(I.getOperand(i + 1));
@@ -408,13 +444,25 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             addr = IB->getAddress();
 			t = ::get_type_operand(*addr, gamma);
 			if (t == S) {
-				errs() << "A secret might leak while jumping to this ptr\n";
+				if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " A secret might leak while jumping to this ptr\n";
+                } else {
+                    errs() << "A secret might leak while jumping to this ptr\n";
+                } 
 			}
             if (auto *BA = dyn_cast<BlockAddress>(addr)) {
                 bb = BA->getBasicBlock();
                 gamma = ::get_gamma_block(*bb, gamma);
             } else {
-                errs() << "IndirectBr instruction requires a BlockAddress operand\n";
+                if (const DebugLoc &DL = I.getDebugLoc()) {
+                    errs() << "Erreur de typage à ";
+                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    errs() << " IndirectBr instruction requires a BlockAddress operand\n";
+                } else {
+                    errs() << "IndirectBr instruction requires a BlockAddress operand\n";
+                } 
             }
             break;
         // Default case: treat as non-secret unless it's a terminator
@@ -440,6 +488,9 @@ std::map<std::string, type_sys> llvm::get_gamma_block(const BasicBlock &BB,
         return it->second;
     }
     for (const Instruction &I : BB) {
+        if (I.isTerminator()) {
+            gamma_cache[const_cast<BasicBlock*>(&BB)] = gamma;
+        }
         gamma = ::get_gamma_instruction(I, gamma);
     }
     // Cache the gamma for the block
@@ -450,6 +501,10 @@ std::map<std::string, type_sys> llvm::get_gamma_block(const BasicBlock &BB,
 // Propagates the gamma map through all basic blocks in a function
 std::map<std::string, type_sys> llvm::get_gamma_fun(const Function &F, 
                                               std::map<std::string, type_sys> &gamma) {
+    auto it = gamma_fun.find(F.getName().str());
+    if (it != gamma_fun.end()) {
+        return it->second;
+    }
     const AttributeList &Attrs = F.getAttributes();
     AttributeSet FnAttrs = Attrs.getFnAttrs();
     for (const auto &Attr : FnAttrs) {
