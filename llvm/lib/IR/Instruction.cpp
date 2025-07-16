@@ -1026,6 +1026,7 @@ bool Instruction::mayWriteToMemory() const {
   switch (getOpcode()) {
   default: return false;
   case Instruction::Fence: // FIXME: refine definition of mayWriteToMemory
+  case Instruction::Dfence:
   case Instruction::Store:
   case Instruction::VAArg:
   case Instruction::AtomicCmpXchg:
