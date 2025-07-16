@@ -839,6 +839,7 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   case LandingPad:     return "landingpad";
   case CleanupPad:     return "cleanuppad";
   case Freeze:         return "freeze";
+  case Dfence:         return "dfence";
 
   default: return "<Invalid operator> ";
   }
