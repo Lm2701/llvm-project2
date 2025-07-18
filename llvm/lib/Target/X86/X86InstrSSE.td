@@ -3269,18 +3269,17 @@ def : Pat<(X86MFence), (MFENCE)>;
 // SSE 1 & 2 - Prefetch and memory Dfence 
 //===----------------------------------------------------------------------===//
 let SchedRW = [WriteDfence] in {
-  def DFENCE : I<0xAE, MRMSrcReg, (outs), (ins GR32:$reg), "dfence\t$reg", [(int_x86_sse_dfence GR32:$reg)]>,
+  def DFENCE : I<0xAE, MRMSrcReg, (outs GR64:$rego), (ins GR64:$reg), "dfence\t$reg\t$rego", [(set GR64:$rego, (int_x86_sse_dfence GR64:$reg))]>,
                 TB, Requires<[HasDfence]>{
-  let OpSize = OpSize32;
   let hasSideEffects = 1;
   let mayStore = 1;
   let hasNoSchedulingInfo = 0;
-  let DecoderMethod = "DecodeGPR32RegisterClass";
+  let DecoderMethod = "DecodeGPR64RegisterClass";
   let isCodeGenOnly = 1;
   }
 }
 
-def : Pat<(X86Dfence GR32:$reg), (DFENCE GR32:$reg)>;
+def : Pat<(X86Dfence GR64:$reg), (DFENCE GR64:$reg)>;
 
 
 //===----------------------------------------------------------------------===//

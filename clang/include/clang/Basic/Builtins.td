@@ -1880,10 +1880,10 @@ def C11AtomicSignalFence : Builtin {
   let Prototype = "void(int)";
 }
 
-def C11AtomicDfence : Builtin {
+def C11AtomicDfence : Builtin, SyncBuiltinsTemplate {
   let Spellings = ["__c11_atomic_dfence"];
   let Attributes = [NoThrow];
-  let Prototype = "void(int)";
+  let Prototype = "T(T)";
 }
 
 def C11AtomicIsLockFree : Builtin {
@@ -2055,10 +2055,10 @@ def AtomicSignalFence : Builtin {
   let Prototype = "void(int)";
 }
 
-def AtomicDfence : Builtin {
+def AtomicDfence : Builtin, SyncBuiltinsTemplate {
   let Spellings = ["__atomic_dfence"];
   let Attributes = [NoThrow];
-  let Prototype = "void(int)";
+  let Prototype = "T(T)";
 }
 
 def AtomicAlwaysLockFree : Builtin {

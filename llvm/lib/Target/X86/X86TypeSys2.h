@@ -20,17 +20,17 @@ enum type_sys { N, S };
 
 type_sys unify_typs(type_sys t1, type_sys t2);
 
-std::map<const llvm::Value*, type_sys> unify_maps(std::map<const llvm::Value*, type_sys> m1, std::map<const llvm::Value*, type_sys> m2);
+std::map<std::string, type_sys> unify_maps(std::map<std::string, type_sys> m1, std::map<std::string, type_sys> m2);
 
-type_sys get_type_operand(const llvm::Value &v, std::map<const llvm::Value*, type_sys> &gamma);
+type_sys get_type_operand(const llvm::Value &v, std::map<std::string, type_sys> &gamma);
 
-std::map<const llvm::Value*, type_sys> get_gamma_instruction(const llvm::Instruction &I, std::map<const llvm::Value*, type_sys> &gamma);
+std::map<std::string, type_sys> get_gamma_instruction(const llvm::Instruction &I, std::map<std::string, type_sys> &gamma);
 
-std::map<const llvm::Value*, type_sys> get_gamma_block(const llvm::BasicBlock &BB, std::map<const llvm::Value*, type_sys> &gamma);
+std::map<std::string, type_sys> get_gamma_block(const llvm::BasicBlock &BB, std::map<std::string, type_sys> &gamma);
 
-std::map<const llvm::Value*, type_sys> get_gamma_fun(const llvm::Function &F, std::map<const llvm::Value*, type_sys> &gamma);
+std::map<std::string, type_sys> get_gamma_fun(const llvm::Function &F, std::map<std::string, type_sys> &gamma);
 
-std::map<const llvm::Value*, type_sys> get_gamma_module(const llvm::Module &M);
+std::map<std::string, type_sys> get_gamma_module(const llvm::Module &M);
 
 class X86TypeSys : public MachineFunctionPass {
   public:

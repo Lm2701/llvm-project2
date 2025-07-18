@@ -1899,8 +1899,8 @@ public:
     return Insert(new FenceInst(Context, Ordering, SSID), Name);
   }
 
-  DfenceInst *CreateDfence(Value *Val) {
-    return Insert(new DfenceInst(Val));
+  DfenceInst *CreateDfence(Value *Val, const Twine &Name = "") {
+    return Insert(new DfenceInst(Val, Twine()), Name);
   }
 
   AtomicCmpXchgInst *
