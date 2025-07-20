@@ -1542,7 +1542,7 @@ DfenceInst::DfenceInst(Value *Val, const Twine &Name, InsertPosition InsertBefor
 
 DfenceInst::DfenceInst(Value *Val, const Twine &Name, AtomicOrdering Ordering,
                        SyncScope::ID SSID, InsertPosition InsertBefore)
-    : UnaryInstruction(Type::getVoidTy(Val->getContext()), Dfence, Val, InsertBefore) {
+    : UnaryInstruction(Type::getInt32Ty(Val->getContext()), Dfence, Val, InsertBefore) {
   setAtomic(Ordering, SSID);
   setName(Name);
 }

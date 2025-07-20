@@ -335,9 +335,8 @@ def SDTFPAtomic2 : SDTypeProfile<1, 2, [
   SDTCisSameAs<0,2>, SDTCisFP<0>, SDTCisPtrTy<1>
 ]>;
 
-def SDTAtomicDfence : SDTypeProfile<0, 1, [
-  SDTCisInt<0>
-]>;
+def SDTAtomicDfence : SDTypeProfile<1, 1,[SDTCisSameAs<0, 1>, SDTCisInt<0>]>;
+
 
 def SDTAtomicStore : SDTypeProfile<0, 2, [
   SDTCisInt<0>, SDTCisPtrTy<1>

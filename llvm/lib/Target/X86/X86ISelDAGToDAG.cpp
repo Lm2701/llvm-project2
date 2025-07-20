@@ -5158,17 +5158,19 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
     switch (IntNo) {
     default: break;
     case Intrinsic::x86_sse_dfence :{
-        SDLoc DL(Node);
-        SDValue Chain = Node->getOperand(0);
-        SDValue Reg = Node->getOperand(1);
+      SDLoc DL(Node);
+      SDValue Chain = Node->getOperand(0);
+      SDValue Reg = Node->getOperand(1);
 
-        // Sélectionner l'instruction machine DFENCE
-        SDValue Ops[] = { Reg, Chain };
-        MachineSDNode *NewNode = CurDAG->getMachineNode(X86ISD::DFENCE, DL, MVT::Other, Ops);
+      // Sélectionner l'instruction machine DFENCE
+      SDValue Ops[] = { Reg, Chain };
+      SDVTList VTs = CurDAG->getVTList(MVT::i32, MVT::Other);
 
-        ReplaceNode(Node, NewNode);
-        return;
-      }
+      MachineSDNode *NewNode = CurDAG->getMachineNode(X86ISD::DFENCE, DL, VTs, Ops);
+
+      ReplaceNode(Node, NewNode);
+      return;
+    }
     case Intrinsic::x86_encodekey128:
     case Intrinsic::x86_encodekey256: {
       if (!Subtarget->hasKL())

@@ -1900,7 +1900,7 @@ public:
   }
 
   DfenceInst *CreateDfence(Value *Val, const Twine &Name = "") {
-    return Insert(new DfenceInst(Val, Twine()), Name);
+    return Insert(new DfenceInst(Val), Name);
   }
 
   AtomicCmpXchgInst *

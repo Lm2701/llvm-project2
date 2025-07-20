@@ -2205,6 +2205,13 @@ extern __inline void
 }
 
 extern __inline __m128i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ _mm_dfence(int reg) {
+  __asm__ volatile("dfence %0" ::"r"(reg) : "memory");
+  return reg;
+}
+
+extern __inline __m128i
     __attribute__((__gnu_inline__, __always_inline__, __artificial__))
     _mm_cvtsi32_si128(int __A) {
   return _mm_set_epi32(0, 0, 0, __A);

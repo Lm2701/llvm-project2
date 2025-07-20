@@ -32267,8 +32267,9 @@ static SDValue LowerATOMIC_DFENCE(SDValue Op, const X86Subtarget &Subtarget,
   SDLoc dl(Op);
   SDValue Chain = Op.getOperand(0);
   SDValue Arg   = Op.getOperand(1);
+  SDVTList VTs = DAG.getVTList(MVT::i32, MVT::Other);
 
-  return DAG.getNode(X86ISD::DFENCE, dl, MVT::Other, {Arg, Chain});
+  return DAG.getNode(X86ISD::DFENCE, dl, VTs, {Arg, Chain});
 }
 
 static SDValue LowerCMP_SWAP(SDValue Op, const X86Subtarget &Subtarget,
@@ -36758,9 +36759,9 @@ X86TargetLowering::EmitLoweredSRet(MachineInstr &MI,
   MachineFunction &MF = *MBB->getParent();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
 
-  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::POP64r)).addReg(X86::RAX);
-  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::DFENCE)).addReg(X86::RAX);
-  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::JMP64r)).addReg(X86::RAX);  
+  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::POP32r)).addReg(X86::EAX);
+  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::DFENCE), X86::EAX).addReg(X86::EAX);
+  BuildMI(*MBB, MBB->end(), DL, TII.get(X86::JMP32r)).addReg(X86::EAX);  
   MI.eraseFromParent();
   return MBB;
 }
