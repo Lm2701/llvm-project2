@@ -116,7 +116,6 @@ type_sys llvm::get_type_operand (const llvm::Value &v, std::map<std::string, typ
         if (it != gamma.end()) {
             result = it->second;
         }
-        errs() << "Stable ID : " << getStableId(&v) << " with result : " << result << "\n";
     }
     return result;
 }
@@ -171,7 +170,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t2 = ::get_type_operand(*op1, gamma);
             result = ::unify_typs(t1, t2);
             gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
-            errs() << "Stable ID for Unary op : " << getStableId(llvm::dyn_cast<llvm::Value>(&I)) << "\n";
             break;
         // Unary and cast operations
         case Instruction::FNeg:

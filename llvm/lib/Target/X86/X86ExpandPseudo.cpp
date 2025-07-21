@@ -432,7 +432,7 @@ bool X86ExpandPseudo::expandMI(MachineBasicBlock &MBB,
 
     BuildMI(MBB, MBBI, DL, TII.get(X86::POP64r)).addReg(X86::RAX);
 
-    BuildMI(MBB, MBBI, DL, TII.get(X86::DFENCE)).addReg(X86::RAX);
+    BuildMI(MBB, MBBI, DL, TII.get(X86::DFENCE),X86::RAX).addReg(X86::RAX);
 
     BuildMI(MBB, MBBI, DL, TII.get(X86::JMP64r)).addReg(X86::RAX);
 
