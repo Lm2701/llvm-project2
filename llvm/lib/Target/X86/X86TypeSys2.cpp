@@ -54,6 +54,7 @@
 #include <utility>
 #include <map>
 #include <stdexcept>
+#include "llvm/IR/ModuleSlotTracker.h"
 
 using namespace llvm;
 
@@ -66,8 +67,16 @@ FunctionPass *llvm::createX86DfenceTypeSystemPass() {
 }
 
 // Cache for gamma maps per basic block to avoid recomputation
-std::map<BasicBlock*, std::map<const llvm::Value*, type_sys>> gamma_cache;
-std::map<std::string, std::map<const llvm::Value*,type_sys>> gamma_fun;
+std::map<BasicBlock*, std::map<std::string, type_sys>> gamma_cache;
+std::map<std::string, std::map<std::string,type_sys>> gamma_fun;
+llvm::Function *Fun = nullptr;
+
+std::string getStableId(const llvm::Value *V) {
+    std::string out;
+    llvm::raw_string_ostream rso(out);
+    V->printAsOperand(rso, false); // Passe le slot tracker
+    return rso.str();
+}
 
 // Unifies two type_sys objects, propagating the highest (most secret) level
 type_sys llvm::unify_typs(type_sys t1, type_sys t2) {
@@ -79,8 +88,8 @@ type_sys llvm::unify_typs(type_sys t1, type_sys t2) {
 }
 
 // Unifies two gamma maps by unifying their type_sys values for each key
-std::map<const llvm::Value*, type_sys> llvm::unify_maps(std::map<const llvm::Value*, type_sys> m1, std::map<const llvm::Value*, type_sys> m2) {
-    std::map<const llvm::Value*, type_sys> result;
+std::map<std::string, type_sys> llvm::unify_maps(std::map<std::string, type_sys> m1, std::map<std::string, type_sys> m2) {
+    std::map<std::string, type_sys> result;
     for (const auto& [key, value] : m1) {
         if (m2.find(key) != m2.end()) {
             result[key] = ::unify_typs(value, m2[key]);
@@ -97,13 +106,13 @@ std::map<const llvm::Value*, type_sys> llvm::unify_maps(std::map<const llvm::Val
 }
 
 // Gets the type_sys for a given LLVM Value using the current gamma map
-type_sys llvm::get_type_operand (const llvm::Value &v, std::map<const llvm::Value*, type_sys> &gamma) {
+type_sys llvm::get_type_operand (const llvm::Value &v, std::map<std::string, type_sys> &gamma) {
     type_sys result;
     if (isa<Constant>(v)){
         result = N;
     }
     else {
-        auto it = gamma.find(&v);
+        auto it = gamma.find(getStableId(&v));
         if (it != gamma.end()) {
             result = it->second;
         }
@@ -112,7 +121,7 @@ type_sys llvm::get_type_operand (const llvm::Value &v, std::map<const llvm::Valu
 }
 
 // Propagates and updates the gamma map for a single instruction
-std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::Instruction &I, std::map<const llvm::Value*, type_sys> &gamma) {
+std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruction &I, std::map<std::string, type_sys> &gamma) {
     type_sys result;
     // Declare all variables that may be used in any case before the switch
     Value *op = nullptr;
@@ -123,7 +132,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
     BasicBlock *n_lbl = nullptr;
     BasicBlock *exc_lbl = nullptr;
     type_sys t1, t2, t3, t;
-    std::map<const llvm::Value*, type_sys> gamma2, gamma3, gamma4;
+    std::map<std::string, type_sys> gamma2, gamma3, gamma4;
     int i = 0;
     BasicBlock *defaultDest = nullptr;
     BasicBlock *bb = nullptr;
@@ -131,8 +140,8 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
     BasicBlock *bb2 = nullptr;
     const CallBrInst *CB = nullptr;
     const IndirectBrInst *IB = nullptr;
-    std::map<const llvm::Value*, type_sys>::iterator it = gamma.end();
-    std::map<std::string, std::map<const llvm::Value*, type_sys>>::iterator it_fun = gamma_fun.end();
+    std::map<std::string, type_sys>::iterator it = gamma.end();
+    std::map<std::string, std::map<std::string, type_sys>>::iterator it_fun = gamma_fun.end();
     // Handle each instruction opcode and update gamma accordingly
     switch(I.getOpcode()) {
         // Binary operations and comparisons
@@ -160,7 +169,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
             t1 = ::get_type_operand(*op0, gamma);
             t2 = ::get_type_operand(*op1, gamma);
             result = ::unify_typs(t1, t2);
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Unary and cast operations
         case Instruction::FNeg:
@@ -179,7 +188,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
         case Instruction::IntToPtr:
             op = I.getOperand(0);
             result = ::get_type_operand(*op, gamma);
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Select operation
         case Instruction::Select:
@@ -198,7 +207,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
             t2 = ::get_type_operand(*op1, gamma);
             t3 = ::get_type_operand(*op2, gamma);
             result = ::unify_typs(::unify_typs(t1, t2), t3);
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // GetElementPtr operation
         case Instruction::GetElementPtr:
@@ -210,7 +219,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
 				result = ::unify_typs(result, t);
 
             }
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Load operation
         case Instruction::Load:
@@ -227,7 +236,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
                     errs() << "A secret might leak by loading at this ptr address\n";
                 }
             }
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = S;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = S;
             break;
         // Store operation
         case Instruction::Store:
@@ -276,11 +285,11 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
                     errs() << "A secret might leak by doing an atomicrmw at this ptr address\n";
                 }
 			}
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = S;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = S;
             break;
         // Alloca operation
         case Instruction::Alloca:
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = N;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = N;
             break;
         // Fence operation
         case Instruction::Fence:
@@ -292,23 +301,23 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
         case Instruction::Dfence:
             op = I.getOperand(0);
             result = ::get_type_operand(*op, gamma);
-            gamma[op] = N;
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = N;
+            gamma[getStableId(op)] = N;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = N;
             break;
         // Call instruction
         case Instruction::Call:
             gamma2 = gamma;
-            if (const CallInst *IC = dyn_cast<CallInst>(&I))
+            if (auto *IC = llvm::dyn_cast<CallInst>(&I))
             {
                 it_fun = gamma_fun.find(IC->getCalledFunction()->getName().str());
                 if (it_fun != gamma_fun.end()) {
                     gamma2 = it_fun->second;
                 }
                 else {
-                    gamma2 = ::get_gamma_fun(*IC->getCalledFunction(), gamma2);
+                    gamma2 = ::get_gamma_fun(* IC->getCalledFunction(), gamma2);
                 }
-                result = gamma2[IC->getCalledFunction()];
-                gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+                result = gamma2[IC->getCalledFunction()->getName().str()];
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             }
             break;
         // PHI node
@@ -318,7 +327,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
                 Value *val = I.getOperand(i);
                 result = ::unify_typs(result, ::get_type_operand(*val, gamma));
             }
-            gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Ret instruction (not safe)
         /*case Instruction::Ret:
@@ -338,11 +347,11 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
             } else {
                 result = N;
             }
-            it = gamma.find(I.getParent()->getParent());
+            it = gamma.find(I.getParent()->getParent()->getName().str());
             if (it != gamma.end()) {
                 result = ::unify_typs(result, it->second);
             }
-            gamma[I.getParent()->getParent()] = result;
+            gamma[I.getParent()->getParent()->getName().str()] = result;
             break;
         // Branch instruction
         case Instruction::Br:
@@ -393,11 +402,11 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
         // Invoke instruction
         case Instruction::Invoke:
             gamma2 = gamma;
-            if (const InvokeInst *In = dyn_cast<InvokeInst>(&I))
+            if (auto *In = llvm::dyn_cast<InvokeInst>(&I))
             {
                 gamma2 = ::get_gamma_fun(* In->getCalledFunction(), gamma2);
-                result = gamma2[In->getCalledFunction()];
-                gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+                result = gamma2[In->getCalledFunction()->getName().str()];
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
                 n_lbl = In->getNormalDest();
                 exc_lbl = In->getUnwindDest();
                 gamma3 = gamma;
@@ -409,7 +418,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
             break;
         // CallBr instruction
         case Instruction::CallBr:
-            CB = llvm::dyn_cast<CallBrInst>(llvm::dyn_cast<llvm::Value>(&I));
+            CB = llvm::dyn_cast<CallBrInst>(&I);
             defaultDest = CB->getDefaultDest();
             gamma2 = gamma;
             gamma2 = ::get_gamma_block(*defaultDest, gamma2);
@@ -423,7 +432,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
             break;
         // IndirectBr instruction
         case Instruction::IndirectBr:
-            IB = llvm::dyn_cast<IndirectBrInst>(llvm::dyn_cast<llvm::Value>(&I));
+            IB = llvm::dyn_cast<IndirectBrInst>(&I);
             addr = IB->getAddress();
 			t = ::get_type_operand(*addr, gamma);
 			if (t == S) {
@@ -454,7 +463,7 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
                 break;
             }
             else {
-                gamma[llvm::dyn_cast<llvm::Value>(&I)] = result;
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             }
             break;
     }
@@ -462,8 +471,8 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_instruction (const llvm::
 }
 
 // Propagates the gamma map through all instructions in a basic block
-std::map<const llvm::Value*, type_sys> llvm::get_gamma_block(const BasicBlock &BB, 
-                                                std::map<const llvm::Value*, type_sys> &gamma) {
+std::map<std::string, type_sys> llvm::get_gamma_block(const BasicBlock &BB, 
+                                                std::map<std::string, type_sys> &gamma) {
     // Check if the gamma for this block is already cached
     auto it = gamma_cache.find(const_cast<BasicBlock*>(&BB));
     if (it != gamma_cache.end()) {
@@ -481,16 +490,17 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_block(const BasicBlock &B
 }
 
 // Propagates the gamma map through all basic blocks in a function
-std::map<const llvm::Value*, type_sys> llvm::get_gamma_fun(const Function &F, 
-                                              std::map<const llvm::Value*, type_sys> &gamma) {
+std::map<std::string, type_sys> llvm::get_gamma_fun(const Function &F, 
+                                              std::map<std::string, type_sys> &gamma) {
     auto it = gamma_fun.find(F.getName().str());
     if (it != gamma_fun.end()) {
         return it->second;
     }
+    Fun = const_cast<Function*>(&F);
     for (const llvm::Argument &Arg : F.args()) {
-        gamma[llvm::dyn_cast<llvm::Value>(&Arg)] = S;
+        gamma[getStableId(&Arg)] = S;
     }
-    gamma[llvm::dyn_cast<llvm::Value>(&F)] = N;
+    gamma[F.getName().str()] = N;
     gamma_fun[F.getName().str()] = gamma;
     for (const BasicBlock &BB : F) {
         gamma = ::get_gamma_block(BB, gamma);
@@ -500,13 +510,13 @@ std::map<const llvm::Value*, type_sys> llvm::get_gamma_fun(const Function &F,
 }
 
 // Initializes gamma for globals and propagates through all functions in a module
-std::map<const llvm::Value*, type_sys> llvm::get_gamma_module(const Module &M) {
-    std::map<const llvm::Value*, type_sys> gamma;
+std::map<std::string, type_sys> llvm::get_gamma_module(const Module &M) {
+    std::map<std::string, type_sys> gamma;
     for (auto &GV : M.globals()) {
         StringRef name = GV.getName();
         if (!name.empty()) {
             type_sys t = N;
-            gamma[llvm::dyn_cast<llvm::Value>(&GV)] = t;
+            gamma[name.str()] = t;
         }
     }
     for (const Function &F : M) {
@@ -533,7 +543,7 @@ bool X86TypeSys::runOnMachineFunction(MachineFunction &MF) {
 
     Function &F = MF.getFunction();
     Module *M = F.getParent();
-    std::map<const llvm::Value*,type_sys> gamma = ::get_gamma_module(*M);
+    std::map<std::string,type_sys> gamma = ::get_gamma_module(*M);
     return true;
 }
 

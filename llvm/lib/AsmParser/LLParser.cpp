@@ -8808,7 +8808,7 @@ int LLParser::parseDfence(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (parseTypeAndValue(Val, Loc, PFS)) return true;
 
-  Inst = new DfenceInst(Val, Ordering, SSID);
+  Inst = new DfenceInst(Val, "", Ordering, SSID);
   return InstNormal;
 }
 

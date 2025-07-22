@@ -461,7 +461,7 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse2_pause : ClangBuiltin<"__builtin_ia32_pause">,
               Intrinsic<[], [], []>;
   def int_x86_sse_dfence : ClangBuiltin<"__builtin_ia32_dfence">,
-              Intrinsic<[], [llvm_i32_ty], [IntrHasSideEffects]>;
+              Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrHasSideEffects]>;
 }
 //===----------------------------------------------------------------------===//
 // SSE3

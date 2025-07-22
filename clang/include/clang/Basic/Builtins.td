@@ -1883,7 +1883,7 @@ def C11AtomicSignalFence : Builtin {
 def C11AtomicDfence : Builtin {
   let Spellings = ["__c11_atomic_dfence"];
   let Attributes = [NoThrow];
-  let Prototype = "void(int)";
+  let Prototype = "int(int)";
 }
 
 def C11AtomicIsLockFree : Builtin {
@@ -2058,7 +2058,7 @@ def AtomicSignalFence : Builtin {
 def AtomicDfence : Builtin {
   let Spellings = ["__atomic_dfence"];
   let Attributes = [NoThrow];
-  let Prototype = "void(int)";
+  let Prototype = "int(int)";
 }
 
 def AtomicAlwaysLockFree : Builtin {

@@ -5162,9 +5162,9 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
         SDValue Chain = Node->getOperand(0);
         SDValue Reg = Node->getOperand(1);
 
-        // Sélectionner l'instruction machine DFENCE
         SDValue Ops[] = { Reg, Chain };
-        MachineSDNode *NewNode = CurDAG->getMachineNode(X86ISD::DFENCE, DL, MVT::Other, Ops);
+
+        MachineSDNode *NewNode = CurDAG->getMachineNode(X86ISD::DFENCE, DL, MVT::i32, Ops);
 
         ReplaceNode(Node, NewNode);
         return;
@@ -6447,7 +6447,7 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
     SDValue Arg = Node->getOperand(1);
 
     MachineSDNode *NewNode =
-        CurDAG->getMachineNode(X86::DFENCE, DL, MVT::Other, {Arg, Chain});
+        CurDAG->getMachineNode(X86::DFENCE, DL, MVT::i32, {Arg, Chain});
 
     ReplaceNode(Node, NewNode);
     return;

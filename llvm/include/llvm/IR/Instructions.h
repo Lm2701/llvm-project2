@@ -497,7 +497,7 @@ private:
 //===----------------------------------------------------------------------===//
 //                                DfenceInst Class
 //===----------------------------------------------------------------------===//
-class DfenceInst : public Instruction {
+class DfenceInst : public UnaryInstruction {
   using OrderingField = AtomicOrderingBitfieldElementT<0>;
 
   constexpr static IntrusiveOperandsAllocMarker AllocMarker{1};
@@ -513,10 +513,11 @@ protected:
 public:
   // Ordering may only be Acquire, Release, AcquireRelease, or
   // SequentiallyConsistent.
-  LLVM_ABI DfenceInst(Value *Val, InsertPosition InsertBefore = nullptr);
-  LLVM_ABI DfenceInst(Value *Val, AtomicOrdering Ordering,
-                     SyncScope::ID SSID = SyncScope::System,
-                     InsertPosition InsertBefore = nullptr);
+  LLVM_ABI DfenceInst(Value *Val, const Twine &Name = "",
+                      InsertPosition InsertBefore = nullptr);
+  LLVM_ABI DfenceInst(Value *Val, const Twine &Name, AtomicOrdering Ordering,
+                      SyncScope::ID SSID = SyncScope::System,
+                      InsertPosition InsertBefore = nullptr);
 
   // allocate space for exactly zero operands
   void *operator new(size_t S) { return User::operator new(S, AllocMarker); }
@@ -534,22 +535,18 @@ public:
   }
 
   /// Returns the synchronization scope ID of this dfence instruction.
-  SyncScope::ID getSyncScopeID() const {
-    return SSID;
-  }
+  SyncScope::ID getSyncScopeID() const { return SSID; }
 
   /// Sets the synchronization scope ID of this dfence instruction.
-  void setSyncScopeID(SyncScope::ID SSID) {
-    this->SSID = SSID;
-  }
+  void setSyncScopeID(SyncScope::ID SSID) { this->SSID = SSID; }
 
   void setAtomic(AtomicOrdering Ordering,
                  SyncScope::ID SSID = SyncScope::System) {
     setOrdering(Ordering);
     setSyncScopeID(SSID);
   }
-  
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  /*DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);*/
 
   Value *getValueOperand() { return getOperand(0); }
   const Value *getValueOperand() const { return getOperand(0); }
@@ -576,12 +573,11 @@ private:
   SyncScope::ID SSID;
 };
 
-template <>
+/*template <>
 struct OperandTraits<DfenceInst> : public FixedNumOperandTraits<DfenceInst, 1> {
 };
 
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DfenceInst, Value)
-
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DfenceInst, Value)*/
 
 //===----------------------------------------------------------------------===//
 //                                AtomicCmpXchgInst Class

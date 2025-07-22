@@ -5382,7 +5382,8 @@ void SelectionDAGBuilder::visitDfence(const DfenceInst &I) {
   SDLoc dl = getCurSDLoc();
   SDValue Chain = getRoot();
   SDValue Arg = getValue(I.getOperand(0));
-  SDValue N = DAG.getNode(ISD::ATOMIC_DFENCE, dl, MVT::Other, {Chain, Arg});
+
+  SDValue N = DAG.getNode(ISD::ATOMIC_DFENCE, dl, MVT::i32, {Chain, Arg});
   setValue(&I, N);
   DAG.setRoot(N);
 }

@@ -1536,15 +1536,15 @@ FenceInst::FenceInst(LLVMContext &C, AtomicOrdering Ordering,
 //===----------------------------------------------------------------------===//
 //                       DfenceInst Implementation
 //===----------------------------------------------------------------------===//
-DfenceInst::DfenceInst(Value *Val, InsertPosition InsertBefore) :
-  DfenceInst(Val, AtomicOrdering::NotAtomic,
+DfenceInst::DfenceInst(Value *Val, const Twine &Name, InsertPosition InsertBefore) :
+  DfenceInst(Val, Name, AtomicOrdering::NotAtomic,
                 SyncScope::System, InsertBefore) {}
 
-DfenceInst::DfenceInst(Value *Val, AtomicOrdering Ordering,
+DfenceInst::DfenceInst(Value *Val, const Twine &Name, AtomicOrdering Ordering,
                        SyncScope::ID SSID, InsertPosition InsertBefore)
-    : Instruction(Type::getVoidTy(Val->getContext()), Dfence, AllocMarker, InsertBefore) {
-  Op<0>() = Val;
+    : UnaryInstruction(Type::getInt32Ty(Val->getContext()), Dfence, Val, InsertBefore) {
   setAtomic(Ordering, SSID);
+  setName(Name);
 }
 
 //===----------------------------------------------------------------------===//
@@ -4419,7 +4419,7 @@ FenceInst *FenceInst::cloneImpl() const {
 }
 
 DfenceInst *DfenceInst::cloneImpl() const {
-  return new DfenceInst(getOperand(0), getOrdering(), getSyncScopeID());
+  return new DfenceInst(getOperand(0), Twine(), getOrdering(), getSyncScopeID());
 }
 
 TruncInst *TruncInst::cloneImpl() const {

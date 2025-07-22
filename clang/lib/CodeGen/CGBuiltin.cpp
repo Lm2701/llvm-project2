@@ -4993,10 +4993,12 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BI__atomic_dfence:
   case Builtin::BI__c11_atomic_dfence: {
     Value *Arg = EmitScalarExpr(E->getArg(0));
-    llvm::IRBuilderBase::InsertPointGuard IPG(Builder);
-    Builder.CreateDfence(Arg);
+    // llvm::IRBuilderBase::InsertPointGuard IPG(Builder);
+    // Builder.CreateDfence(Arg);
 
-    return RValue::get(nullptr);
+    // return RValue::get(nullptr);
+    Value* res = Builder.CreateDfence(Arg);
+    return RValue::get(res);
   }
 
   case Builtin::BI__atomic_thread_fence:

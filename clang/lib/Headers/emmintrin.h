@@ -4139,6 +4139,8 @@ void _mm_lfence(void);
 ///
 void _mm_mfence(void);
 
+int _mm_dfence(int reg);
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
