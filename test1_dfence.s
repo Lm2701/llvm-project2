@@ -1,19 +1,22 @@
+	.attribute	4, 16
+	.attribute	5, "rv32i2p1_m2p0_a2p1_zmmul1p0_zaamo1p0_zalrsc1p0"
 	.file	"test1_dfence.ll"
 	.text
 	.globl	main                            # -- Begin function main
-	.p2align	4
+	.p2align	2
 	.type	main,@function
 main:                                   # @main
 	.cfi_startproc
 # %bb.0:                                # %entry
-	movq	secret_data@GOTPCREL(%rip), %rax
-	incb	(%rax)
-	movq	public_data@GOTPCREL(%rip), %rax
-	movzbl	(%rax), %eax
-	dfence	%eax
-	popq	%rax
-	dfence	%rax
-	jmpq	*%rax
+	lui	a0, %hi(secret_data)
+	lbu	a1, %lo(secret_data)(a0)
+	lui	a2, %hi(public_data)
+	lbu	a2, %lo(public_data)(a2)
+	addi	a1, a1, 1
+	sb	a1, %lo(secret_data)(a0)
+	dfence	a0, a2
+
+	ret
 .Lfunc_end0:
 	.size	main, .Lfunc_end0-main
 	.cfi_endproc

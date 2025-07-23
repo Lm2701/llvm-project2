@@ -20,6 +20,10 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+
+
+
 using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
@@ -66,6 +70,7 @@ bool RISCVInstPrinter::applyTargetSpecificCLOption(StringRef Opt) {
   return false;
 }
 
+
 void RISCVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                  StringRef Annot, const MCSubtargetInfo &STI,
                                  raw_ostream &O) {
@@ -76,8 +81,19 @@ void RISCVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
     Res = RISCVRVC::uncompress(UncompressedMI, *MI, STI);
   if (Res)
     NewMI = const_cast<MCInst *>(&UncompressedMI);
-  if (!PrintAliases || NoAliases || !printAliasInstr(NewMI, Address, STI, O))
-    printInstruction(NewMI, Address, STI, O);
+  if (!PrintAliases || NoAliases || !printAliasInstr(NewMI, Address, STI, O)){
+    switch (MI->getOpcode()) {
+    case RISCV::DFENCE:
+      O << "\tdfence\t";
+      printRegName(O, MI->getOperand(0).getReg());
+      O << ", ";
+      printRegName(O, MI->getOperand(2).getReg());
+      O << "\n";
+      break;
+    default:
+      printInstruction(NewMI, Address, STI, O);
+  }
+  }
   printAnnotation(O, Annot);
 }
 
