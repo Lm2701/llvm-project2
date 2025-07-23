@@ -668,9 +668,6 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::Constant, MVT::i64, Custom);
 
 
-  setOperationAction(ISD::ATOMIC_DFENCE, MVT::i32, Custom);
-
-
   // TODO: On M-mode only targets, the cycle[h]/time[h] CSR may not be present.
   // Unfortunately this can't be determined just from the ISA naming string.
   setOperationAction(ISD::READCYCLECOUNTER, MVT::i64,
@@ -706,6 +703,8 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   }
 
   setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Custom);
+
+  setOperationAction(ISD::ATOMIC_DFENCE, MVT::i32, Custom);
 
   setBooleanContents(ZeroOrOneBooleanContent);
 
@@ -10601,12 +10600,6 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break; // Don't custom lower most intrinsics.
-  case Intrinsic::riscv_dfence:{
-    SDLoc DL(Op);
-    SDValue Chain = Op.getOperand(0);
-    SDValue Reg = Op.getOperand(1);
-    return DAG.getNode(RISCVISD::DFENCE, DL, MVT::i32, {Reg,Chain});
-  }
   case Intrinsic::riscv_tuple_insert: {
     SDValue Vec = Op.getOperand(1);
     SDValue SubVec = Op.getOperand(2);
@@ -10883,6 +10876,12 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break;
+  case Intrinsic::riscv_dfence:{
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Reg = Op.getOperand(1);
+    return DAG.getNode(RISCVISD::DFENCE, DL, MVT::i32, {Reg,Chain});
+  }
   case Intrinsic::riscv_seg2_load_mask:
   case Intrinsic::riscv_seg3_load_mask:
   case Intrinsic::riscv_seg4_load_mask:

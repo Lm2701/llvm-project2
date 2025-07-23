@@ -1856,18 +1856,6 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       // By default we do not custom select any intrinsic.
     default:
       break;
-    case Intrinsic::riscv_dfence :{
-        SDLoc DL(Node);
-        SDValue Chain = Node->getOperand(0);
-        SDValue Reg = Node->getOperand(1);
-
-        SDValue Ops[] = { Reg, Chain };
-
-        MachineSDNode *NewNode = CurDAG->getMachineNode(RISCVISD::DFENCE, DL, MVT::i32, Ops);
-
-        ReplaceNode(Node, NewNode);
-        return;
-      }
     case Intrinsic::riscv_vmsgeu:
     case Intrinsic::riscv_vmsge: {
       SDValue Src1 = Node->getOperand(1);
@@ -2103,7 +2091,19 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     switch (IntNo) {
       // By default we do not custom select any intrinsic.
     default:
-      break;      
+      break;
+        case Intrinsic::riscv_dfence :{
+        SDLoc DL(Node);
+        SDValue Chain = Node->getOperand(0);
+        SDValue Reg = Node->getOperand(1);
+
+        SDValue Ops[] = { Reg, Chain };
+
+        MachineSDNode *NewNode = CurDAG->getMachineNode(RISCVISD::DFENCE, DL, MVT::i32, Ops);
+
+        ReplaceNode(Node, NewNode);
+        return;
+      }      
     case Intrinsic::riscv_vlseg2:
     case Intrinsic::riscv_vlseg3:
     case Intrinsic::riscv_vlseg4:
