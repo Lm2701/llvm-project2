@@ -1002,6 +1002,17 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   bool HasBitTest = Subtarget->hasStdExtZbs() || Subtarget->hasVendorXTHeadBs();
 
   switch (Opcode) {
+  case ISD::ATOMIC_DFENCE: {
+    SDLoc DL(Node);
+    SDValue Chain = Node->getOperand(0);
+    SDValue Reg   = Node->getOperand(1);
+
+    MachineSDNode *NewNode =
+        CurDAG->getMachineNode(RISCV::DFENCE, DL, MVT::i32, { Reg, Chain });
+
+    ReplaceNode(Node, NewNode);
+    return;
+  }
   case ISD::Constant: {
     assert((VT == Subtarget->getXLenVT() || VT == MVT::i32) && "Unexpected VT");
     auto *ConstNode = cast<ConstantSDNode>(Node);
@@ -1845,6 +1856,18 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       // By default we do not custom select any intrinsic.
     default:
       break;
+    case Intrinsic::riscv_dfence :{
+        SDLoc DL(Node);
+        SDValue Chain = Node->getOperand(0);
+        SDValue Reg = Node->getOperand(1);
+
+        SDValue Ops[] = { Reg, Chain };
+
+        MachineSDNode *NewNode = CurDAG->getMachineNode(RISCVISD::DFENCE, DL, MVT::i32, Ops);
+
+        ReplaceNode(Node, NewNode);
+        return;
+      }
     case Intrinsic::riscv_vmsgeu:
     case Intrinsic::riscv_vmsge: {
       SDValue Src1 = Node->getOperand(1);
@@ -2080,7 +2103,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     switch (IntNo) {
       // By default we do not custom select any intrinsic.
     default:
-      break;
+      break;      
     case Intrinsic::riscv_vlseg2:
     case Intrinsic::riscv_vlseg3:
     case Intrinsic::riscv_vlseg4:

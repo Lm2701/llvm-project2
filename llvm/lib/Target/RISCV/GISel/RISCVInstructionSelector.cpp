@@ -91,6 +91,7 @@ private:
   bool selectFPCompare(MachineInstr &MI, MachineIRBuilder &MIB) const;
   void emitFence(AtomicOrdering FenceOrdering, SyncScope::ID FenceSSID,
                  MachineIRBuilder &MIB) const;
+  void emitDfence(MachineInstr &MI, MachineIRBuilder &MIB) const;
   bool selectUnmergeValues(MachineInstr &MI, MachineIRBuilder &MIB) const;
 
   ComplexRendererFns selectShiftMask(MachineOperand &Root,
@@ -811,6 +812,11 @@ bool RISCVInstructionSelector::select(MachineInstr &MI) {
     MI.eraseFromParent();
     return true;
   }
+  case TargetOpcode::G_DFENCE: {
+    emitDfence(MI, MIB);
+    MI.eraseFromParent();
+    return true;
+  }
   case TargetOpcode::G_IMPLICIT_DEF:
     return selectImplicitDef(MI, MIB);
   case TargetOpcode::G_UNMERGE_VALUES:
@@ -1356,6 +1362,17 @@ bool RISCVInstructionSelector::selectFPCompare(MachineInstr &MI,
 
   MI.eraseFromParent();
   return true;
+}
+
+void RISCVInstructionSelector::emitDfence(MachineInstr &MI, MachineIRBuilder &MIB) const {
+
+  Register SrcVReg = MI.getOperand(0).getReg();
+  Register DstVReg = MI.getOperand(1).getReg();
+
+  MIB.buildInstr(RISCV::DFENCE)
+     .addUse(SrcVReg)
+     .addDef(DstVReg);
+  return;
 }
 
 void RISCVInstructionSelector::emitFence(AtomicOrdering FenceOrdering,

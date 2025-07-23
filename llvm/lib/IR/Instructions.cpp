@@ -4419,7 +4419,7 @@ FenceInst *FenceInst::cloneImpl() const {
 }
 
 DfenceInst *DfenceInst::cloneImpl() const {
-  return new DfenceInst(getOperand(0), getOrdering(), getSyncScopeID());
+  return new DfenceInst(getOperand(0), Twine(), getOrdering(), getSyncScopeID());
 }
 
 TruncInst *TruncInst::cloneImpl() const {

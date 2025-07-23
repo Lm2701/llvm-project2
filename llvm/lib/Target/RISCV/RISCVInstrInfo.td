@@ -812,6 +812,9 @@ def OR   : ALU_rr<0b0000000, 0b110, "or", Commutable=1>,
 def AND  : ALU_rr<0b0000000, 0b111, "and", Commutable=1>,
            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 
+
+def RISCVDfence : RVSDNode<"DFENCE", SDTAtomicDfence, [SDNPHasChain, SDNPMemOperand]> ;
+
 let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in {
 def FENCE : RVInstI<0b000, OPC_MISC_MEM, (outs),
                     (ins fencearg:$pred, fencearg:$succ),
@@ -835,6 +838,12 @@ def FENCE_I : RVInstI<0b001, OPC_MISC_MEM, (outs), (ins), "fence.i", "">, Sched<
   let rd = 0;
   let imm12 = 0;
 }
+
+def DFENCE : RVInstI<0b000, OPC_MISC_MEM, (outs GPR:$rd), (ins GPR:$rs1), "dfence", "$rd, $rs1">, Sched<[]> {
+  let imm12 = {0b0001,0b0000,0b0000};
+  let isPseudo = 0;
+}
+
 
 def ECALL : RVInstI<0b000, OPC_SYSTEM, (outs), (ins), "ecall", "">, Sched<[WriteJmp]> {
   let rs1 = 0;
@@ -1477,6 +1486,8 @@ def : Pat<(i64 (and GPR:$rs, immop_oneuse<LeadingOnesMask>:$mask)),
 def : Pat<(XLenVT (and GPR:$rs, immop_oneuse<TrailingOnesMask>:$mask)),
           (SRLI (XLenVT (SLLI $rs, (XLenSubTrailingOnes imm:$mask))),
                 (XLenSubTrailingOnes imm:$mask))>;
+
+def : PatGpr<RISCVDfence, DFENCE>;
 
 // Match both a plain shift and one where the shift amount is masked (this is
 // typically introduced when the legalizer promotes the shift amount and

@@ -667,6 +667,10 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.is64Bit())
     setOperationAction(ISD::Constant, MVT::i64, Custom);
 
+
+  setOperationAction(ISD::ATOMIC_DFENCE, MVT::i32, Custom);
+
+
   // TODO: On M-mode only targets, the cycle[h]/time[h] CSR may not be present.
   // Unfortunately this can't be determined just from the ISA naming string.
   setOperationAction(ISD::READCYCLECOUNTER, MVT::i64,
@@ -6663,6 +6667,15 @@ static SDValue LowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG,
   return Op;
 }
 
+static SDValue LowerATOMIC_DFENCE(SDValue Op, SelectionDAG &DAG, const RISCVSubtarget&Subtarget) {
+
+  SDLoc dl(Op);
+  SDValue Chain = Op.getOperand(0);
+  SDValue Arg   = Op.getOperand(1);
+
+  return DAG.getNode(RISCVISD::DFENCE, dl, MVT::i32, {Arg, Chain});
+}
+
 SDValue RISCVTargetLowering::LowerIS_FPCLASS(SDValue Op,
                                              SelectionDAG &DAG) const {
   SDLoc DL(Op);
@@ -7203,6 +7216,8 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return LowerPREFETCH(Op, Subtarget, DAG);
   case ISD::ATOMIC_FENCE:
     return LowerATOMIC_FENCE(Op, DAG, Subtarget);
+  case ISD::ATOMIC_DFENCE:
+    return LowerATOMIC_DFENCE(Op, DAG,Subtarget);
   case ISD::GlobalAddress:
     return lowerGlobalAddress(Op, DAG);
   case ISD::BlockAddress:
@@ -10586,6 +10601,12 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break; // Don't custom lower most intrinsics.
+  case Intrinsic::riscv_dfence:{
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Reg = Op.getOperand(1);
+    return DAG.getNode(RISCVISD::DFENCE, DL, MVT::i32, {Reg,Chain});
+  }
   case Intrinsic::riscv_tuple_insert: {
     SDValue Vec = Op.getOperand(1);
     SDValue SubVec = Op.getOperand(2);
