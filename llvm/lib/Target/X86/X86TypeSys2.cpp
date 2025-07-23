@@ -74,7 +74,7 @@ llvm::Function *Fun = nullptr;
 std::string getStableId(const llvm::Value *V) {
     std::string out;
     llvm::raw_string_ostream rso(out);
-    V->printAsOperand(rso, false); // Passe le slot tracker
+    V->printAsOperand(rso, false);
     return rso.str();
 }
 
@@ -133,7 +133,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
     BasicBlock *exc_lbl = nullptr;
     type_sys t1, t2, t3, t;
     std::map<std::string, type_sys> gamma2, gamma3, gamma4;
-    int i = 0;
     BasicBlock *defaultDest = nullptr;
     BasicBlock *bb = nullptr;
     BasicBlock *bb1 = nullptr;
@@ -198,7 +197,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t1 = ::get_type_operand(*op0, gamma);
             if (!t1 == N) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret may leak through a select operation\n";
                 } else {
                     errs() << "A secret may leak through a select operation\n";
@@ -225,12 +224,9 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
         case Instruction::Load:
             op = I.getOperand(0);
             t = ::get_type_operand(*op, gamma);
-            /*if (t == N){
-                errs() << "Le type est N \n";
-            }*/
             if ( t == S ){
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret might leak by loading at this ptr address\n";
                 } else {
                     errs() << "A secret might leak by loading at this ptr address\n";
@@ -246,7 +242,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t2 = ::get_type_operand(*op1, gamma);
 			if (t2 == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret might leak by storing at this ptr address\n";
                 } else {
                     errs() << "A secret might leak by storing at this ptr address\n";
@@ -264,7 +260,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t = ::get_type_operand(*op, gamma);
 			if (t == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret might leak with CmpXchg at this ptr address\n";
                 } else {
                     errs() << "A secret might leak with CmpXchg at this ptr address\n";
@@ -279,7 +275,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
             t2 = ::get_type_operand(*op1, gamma);
             if (t1 == S){
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret might leak by doing an atomicrmw at this ptr address\n";
                 } else {
                     errs() << "A secret might leak by doing an atomicrmw at this ptr address\n";
@@ -301,7 +297,6 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
         case Instruction::Dfence:
             op = I.getOperand(0);
             result = ::get_type_operand(*op, gamma);
-            gamma[getStableId(op)] = N;
             gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = N;
             break;
         // Call instruction
@@ -333,7 +328,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
         /*case Instruction::Ret:
             if (const DebugLoc &DL = I.getDebugLoc()) {
                     errs() << "Erreur de typage à ";
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << "A secret may leak through a select operation";
                 } else {
                     errs() << "Erreur de typage : pas de debug info\n";
@@ -360,7 +355,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 result = ::get_type_operand(*op, gamma);
                 if (result == S) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        DL.print(errs()); 
                         errs() << " A secret may leak through a branch operation\n";
                     } else {
                         errs() << "A secret may leak through a branch operation\n";
@@ -386,7 +381,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 t = ::get_type_operand(*op, gamma);
                 if (t == S) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        DL.print(errs()); 
                         errs() << " A secret may leak through a switch operation\n";
                     } else {
                         errs() << "A secret may leak through a switch operation\n";
@@ -437,7 +432,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
 			t = ::get_type_operand(*addr, gamma);
 			if (t == S) {
 				if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret might leak while jumping to this ptr\n";
                 } else {
                     errs() << "A secret might leak while jumping to this ptr\n";
@@ -448,7 +443,7 @@ std::map<std::string, type_sys> llvm::get_gamma_instruction (const llvm::Instruc
                 gamma = ::get_gamma_block(*bb, gamma);
             } else {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " IndirectBr instruction requires a BlockAddress operand\n";
                 } else {
                     errs() << "IndirectBr instruction requires a BlockAddress operand\n";

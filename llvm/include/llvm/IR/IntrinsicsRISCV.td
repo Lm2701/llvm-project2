@@ -1891,6 +1891,12 @@ let TargetPrefix = "riscv" in {
 let TargetPrefix = "riscv" in
 def int_riscv_pause : DefaultAttrsIntrinsic<[], [], [IntrNoMem, IntrHasSideEffects]>;
 
+
+let TargetPrefix = "riscv" in 
+def int_riscv_dfence : ClangBuiltin<"__builtin_riscv_dfence">,
+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrHasSideEffects]>;
+
+
 // Vendor extensions
 //===----------------------------------------------------------------------===//
 include "llvm/IR/IntrinsicsRISCVXTHead.td"

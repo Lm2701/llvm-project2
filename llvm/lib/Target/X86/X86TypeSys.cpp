@@ -61,6 +61,13 @@ using namespace llvm;
 std::map<BasicBlock*, std::map<std::string, type_sys>> gamma_cache;
 std::map<std::string, std::map<std::string,type_sys>> gamma_fun;
 
+std::string getStableId(const llvm::Value *V) {
+    std::string out;
+    llvm::raw_string_ostream rso(out);
+    V->printAsOperand(rso, false);
+    return rso.str();
+}
+
 // Unifies two type_sys objects, propagating the highest (most secret) level
 type_sys unify_typs(type_sys t1, type_sys t2) {
     type_sys result;
@@ -108,7 +115,7 @@ type_sys get_type_operand (const llvm::Value &v, std::map<std::string, type_sys>
         }
     }
     else {
-        auto it = gamma.find(v.getName().str());
+        auto it = gamma.find(getStableId(&v));
         if (it != gamma.end()) {
             result = it->second;
         }
@@ -129,7 +136,6 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
     BasicBlock *exc_lbl = nullptr;
     type_sys t1, t2, t3, t;
     std::map<std::string, type_sys> gamma2, gamma3, gamma4;
-    int i = 0;
     BasicBlock *defaultDest = nullptr;
     BasicBlock *bb = nullptr;
     BasicBlock *bb1 = nullptr;
@@ -169,7 +175,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 result = ::unify_typs(t1, t2);
             } else if (op0->getType()->isPointerTy() || op1->getType()->isPointerTy()) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret may leak through a pointer operation\n";
                 } else {
                     errs() << "A secret may leak through a pointer operation\n";
@@ -177,7 +183,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             }else {
                 result = ::unify_typs(t1, t2);
             }
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Unary and cast operations
         case Instruction::FNeg:
@@ -197,13 +203,13 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             result = ::get_type_operand(*op, gamma);
             if ((result.type_ns != L || result.type_s != L) && I.getType()->isPointerTy()) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret may leak through a cast operation\n";
                 } else {
                     errs() << "A secret may leak through a cast operation\n";
                 }
             }
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // IntToPtr operation
         case Instruction::IntToPtr:
@@ -211,14 +217,14 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             result = ::get_type_operand(*op, gamma);
             if (result.type_ns != L || result.type_s != L) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret may leak through an IntToPtr operation\n";
                 } else {
                     errs() << "A secret may leak through an IntToPtr operation\n";
                 }
             }
             result.type_s = H;
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Select operation
         case Instruction::Select:
@@ -228,7 +234,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             t1 = ::get_type_operand(*op0, gamma);
             if (!t1.type_ns == L || !t1.type_s == L) {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " A secret may leak through a select operation\n";
                 } else {
                     errs() << "A secret may leak through a select operation\n";
@@ -237,7 +243,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             t2 = ::get_type_operand(*op1, gamma);
             t3 = ::get_type_operand(*op2, gamma);
             result = ::unify_typs(::unify_typs(t1, t2), t3);
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // GetElementPtr operation
         case Instruction::GetElementPtr:
@@ -246,7 +252,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 t = ::get_type_operand(*op, gamma);
                 if (t.type_ns == L || t.type_s == L) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        DL.print(errs()); 
                         errs() << " A secret may leak through a GEP operation\n";
                     } else {
                         errs() << "A secret may leak through a GEP operation\n";
@@ -256,7 +262,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             op0 = I.getOperand(0);
             result = ::get_type_operand(*op0, gamma);
             result.type_s = H;
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Load operation
         case Instruction::Load:
@@ -265,13 +271,13 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             result.type_s = H;
             if (I.getType()->isPointerTy() ){
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs());
                     errs() << " Loading a pointer type is not safe\n";
                 } else {
                     errs() << "Loading a pointer type is not safe\n";
                 }
             }
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Store operation
         case Instruction::Store:
@@ -301,13 +307,13 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             result.type_s = H;
             gamma[I.getOperand(0)->getName().str()] = result;
             result.type_ns = t1.type_ns;
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Alloca operation
         case Instruction::Alloca:
             result.type_ns = L;
             result.type_s = H;
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Fence operation
         case Instruction::Fence:
@@ -320,7 +326,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             op = I.getOperand(0);
             result = ::get_type_operand(*op, gamma);
             result.type_s = result.type_ns;
-            gamma[op->getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Call instruction
         case Instruction::Call:
@@ -334,7 +340,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                     gamma2 = ::get_gamma_fun(*IC->getCalledFunction(), gamma2);
                 }
                 result = gamma2[IC->getCalledFunction()->getName().str()];
-                gamma[I.getName().str()] = result;
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             }
             break;
         // PHI node
@@ -345,7 +351,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 Value *val = I.getOperand(i);
                 result = ::unify_typs(result, ::get_type_operand(*val, gamma));
             }
-            gamma[I.getName().str()] = result;
+            gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             break;
         // Ret instruction (not safe)
         /*case Instruction::Ret:
@@ -373,7 +379,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 result = ::get_type_operand(*op, gamma);
                 if (result.type_ns != L || result.type_s != L) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        DL.print(errs()); 
                         errs() << " A secret may leak through a branch operation\n";
                     } else {
                         errs() << "A secret may leak through a branch operation\n";
@@ -399,7 +405,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 t = ::get_type_operand(*op, gamma);
                 if (t.type_ns != L || t.type_s != L) {
                     if (const DebugLoc &DL = I.getDebugLoc()) {
-                        DL.print(errs()); // Affiche fichier:ligne:colonne
+                        DL.print(errs()); 
                         errs() << " A secret may leak through a switch operation\n";
                     } else {
                         errs() << "A secret may leak through a switch operation\n";
@@ -417,20 +423,9 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
             gamma2 = gamma;
             if (auto *In = llvm::dyn_cast<InvokeInst>(&I))
             {
-                const AttributeList &Attrs = I.getFunction()->getAttributes();
-                AttributeSet FnAttrs = Attrs.getFnAttrs();
-                i = 0;
-                for (const auto &Attr : FnAttrs) {
-                    op = In->getArgOperand(i);
-                    t = ::get_type_operand(*op, gamma2);
-                    if (Attr.isStringAttribute()){
-                        gamma2[Attr.getKindAsString().str()] = t;
-                    }
-                    i++;
-                }
                 gamma2 = ::get_gamma_fun(* In->getCalledFunction(), gamma2);
                 result = gamma2[In->getCalledFunction()->getName().str()];
-                gamma[I.getName().str()] = result;
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
                 n_lbl = In->getNormalDest();
                 exc_lbl = In->getUnwindDest();
                 gamma3 = gamma;
@@ -463,7 +458,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 gamma = ::get_gamma_block(*bb, gamma);
             } else {
                 if (const DebugLoc &DL = I.getDebugLoc()) {
-                    DL.print(errs()); // Affiche fichier:ligne:colonne
+                    DL.print(errs()); 
                     errs() << " IndirectBr instruction requires a BlockAddress operand\n";
                 } else {
                     errs() << "IndirectBr instruction requires a BlockAddress operand\n";
@@ -478,7 +473,7 @@ std::map<std::string, type_sys> get_gamma_instruction (const llvm::Instruction &
                 break;
             }
             else {
-                gamma[I.getName().str()] = result;
+                gamma[getStableId(llvm::dyn_cast<llvm::Value>(&I))] = result;
             }
             break;
     }
@@ -511,13 +506,9 @@ std::map<std::string, type_sys> get_gamma_fun(const Function &F,
     t.type_ns = L;
     t.type_s = L;
     gamma[F.getName().str()] = t;
-    const AttributeList &Attrs = F.getAttributes();
-    AttributeSet FnAttrs = Attrs.getFnAttrs();
     t.type_s = H;
-    for (const auto &Attr : FnAttrs) {
-        if (Attr.isStringAttribute()){
-            gamma[Attr.getKindAsString().str()] = t;
-        }
+    for (const llvm::Argument &Arg : F.args()) {
+        gamma[getStableId(&Arg)] = t;
     }
     gamma_fun[F.getName().str()] = gamma;
     for (const BasicBlock &BB : F) {
