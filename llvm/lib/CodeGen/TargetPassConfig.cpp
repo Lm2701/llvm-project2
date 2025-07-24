@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
+#include "llvm/CodeGen/DfenceTypeSys.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassInstrumentation.h"
@@ -55,6 +56,11 @@
 #include <string>
 
 using namespace llvm;
+
+cl::opt<bool> WithDfenceTS(
+    "with-dfence-ts",
+    cl::desc("Enable dfence type system instrumentation"),
+    cl::init(false));
 
 static cl::opt<bool>
     EnableIPRA("enable-ipra", cl::init(false), cl::Hidden,
@@ -1204,6 +1210,10 @@ void TargetPassConfig::addMachinePasses() {
 
   addPass(&XRayInstrumentationID);
   addPass(&PatchableFunctionID);
+
+  if(WithDfenceTS){
+    addPass(createDfenceTypeSystemPass());
+  }
 
   addPreEmitPass();
 

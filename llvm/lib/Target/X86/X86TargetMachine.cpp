@@ -51,14 +51,9 @@
 #include <optional>
 #include <string>
 #include "llvm/Support/CommandLine.h"
-#include "X86TypeSys2.h"
 
 using namespace llvm;
 
-cl::opt<bool> WithDfenceTS(
-    "with-dfence-ts",
-    cl::desc("Enable dfence type system instrumentation"),
-    cl::init(false));
 
 static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
                                cl::desc("Enable the machine combiner pass"),
@@ -601,10 +596,6 @@ void X86PassConfig::addPreSched2() {
 }
 
 void X86PassConfig::addPreEmitPass() {
-  if (WithDfenceTS) {
-    
-    addPass(createX86DfenceTypeSystemPass());
-  }
   if (getOptLevel() != CodeGenOptLevel::None) {
     addPass(new X86ExecutionDomainFix());
     addPass(createBreakFalseDeps());
@@ -630,9 +621,6 @@ void X86PassConfig::addPreEmitPass() {
 void X86PassConfig::addPreEmitPass2() {
   const Triple &TT = TM->getTargetTriple();
   const MCAsmInfo *MAI = TM->getMCAsmInfo();
-  if (WithDfenceTS) {
-    addPass(createX86DfenceTypeSystemPass());
-  }
 
   // The X86 Speculative Execution Pass must run after all control
   // flow graph modifying passes. As a result it was listed to run right before
